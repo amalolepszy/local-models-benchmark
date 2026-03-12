@@ -1,10 +1,8 @@
-import type { BackendId, FrameworkBenchmark } from './types';
+import type { BackendId, ClassificationResult, FrameworkBenchmark } from './types';
+import type { PreprocessedImage } from '../utils/image-input';
+import { IMAGENET_LABELS } from '../utils/imagenet-labels';
 import * as tf from '@tensorflow/tfjs';
 
-/**
- * TensorFlow.js benchmark adapter.
- * Uses MobileNet v2 (small classification model) for inference.
- */
 export class TfjsBenchmark implements FrameworkBenchmark {
   name = 'TensorFlow.js';
   supportedBackends: BackendId[] = ['wasm', 'webgl', 'webgpu'];
@@ -27,21 +25,32 @@ export class TfjsBenchmark implements FrameworkBenchmark {
   }
 
   async loadModel(): Promise<void> {
-    // MobileNet v2 1.0 224x224 classification (served locally)
     const MODEL_URL = '/mobilenet_v2_tfjs/model.json';
     this.model = await tf.loadGraphModel(MODEL_URL);
-    // MobileNet v2 1.0_224 expects (1, 224, 224, 3) with values in [0, 1]
+    // Default to random input
     this.inputTensor = tf.randomUniform([1, 224, 224, 3]);
+  }
+
+  setImage(image: PreprocessedImage): void {
+    this.inputTensor?.dispose();
+    // TF.js MobileNet v2 from TFHub expects NHWC [0, 1]
+    this.inputTensor = tf.tensor(image.nhwcZeroOne, [1, 224, 224, 3]);
   }
 
   async runInference(): Promise<number> {
     const start = performance.now();
     const result = this.model!.predict(this.inputTensor!) as tf.Tensor;
-    // Force sync to ensure computation completes
     await result.data();
     const elapsed = performance.now() - start;
     result.dispose();
     return elapsed;
+  }
+
+  async classify(topK = 5): Promise<ClassificationResult[]> {
+    const result = this.model!.predict(this.inputTensor!) as tf.Tensor;
+    const probabilities = await result.data();
+    result.dispose();
+    return extractTopK(probabilities as Float32Array, topK);
   }
 
   async dispose(): Promise<void> {
@@ -50,4 +59,21 @@ export class TfjsBenchmark implements FrameworkBenchmark {
     this.model = null;
     this.inputTensor = null;
   }
+}
+
+function extractTopK(logits: Float32Array, topK: number): ClassificationResult[] {
+  // Apply softmax
+  const maxLogit = Math.max(...logits);
+  const exps = logits.map(l => Math.exp(l - maxLogit));
+  const sumExp = exps.reduce((s, e) => s + e, 0);
+  const probs = exps.map(e => e / sumExp);
+
+  const indexed = Array.from(probs).map((score, i) => ({ score, i }));
+  indexed.sort((a, b) => b.score - a.score);
+
+  return indexed.slice(0, topK).map(({ score, i }) => ({
+    label: IMAGENET_LABELS[i] ?? `class_${i}`,
+    labelIndex: i,
+    score,
+  }));
 }
