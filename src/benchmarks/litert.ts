@@ -1,17 +1,15 @@
-import type { BackendId, FrameworkBenchmark } from './types';
+import type { BackendId, ClassificationResult, FrameworkBenchmark } from './types';
+import type { PreprocessedImage } from '../utils/image-input';
+import { IMAGENET_LABELS } from '../utils/imagenet-labels';
 import { loadLiteRt, loadAndCompile, Tensor, type CompiledModel } from '@litertjs/core';
 
-/**
- * LiteRT.js benchmark adapter.
- * Uses MobileNet v2 (.tflite) for image classification.
- */
 let liteRtLoaded = false;
 
 export class LiteRTBenchmark implements FrameworkBenchmark {
   name = 'LiteRT.js';
   supportedBackends: BackendId[] = ['wasm', 'webgpu'];
   private model: CompiledModel | null = null;
-  private inputData: Float32Array | null = null;
+  private inputData: Float32Array = new Float32Array(0);
   private backend: BackendId = 'wasm';
 
   async initFramework(backend: BackendId): Promise<void> {
@@ -23,35 +21,34 @@ export class LiteRTBenchmark implements FrameworkBenchmark {
   }
 
   async loadModel(): Promise<void> {
-    // MobileNet v2 1.0 224x224 classification (served locally)
     const MODEL_URL = '/mobilenet_v2-1-0-224.tflite';
-
     const accelerator = this.backend === 'webgpu' ? 'webgpu' : 'wasm';
-
     this.model = await loadAndCompile(MODEL_URL, { accelerator });
 
-    // EfficientNet-Lite0 expects (1, 224, 224, 3) float32 input
+    // Default to random input — NHWC [1, 224, 224, 3]
     this.inputData = new Float32Array(1 * 224 * 224 * 3);
     for (let i = 0; i < this.inputData.length; i++) {
       this.inputData[i] = Math.random();
     }
   }
 
-  async runInference(): Promise<number> {
-    const inputTensor = new Tensor(this.inputData!, [1, 224, 224, 3]);
+  setImage(image: PreprocessedImage): void {
+    // TFLite MobileNet v2 expects NHWC [-1, 1]
+    this.inputData = image.nhwcNegOneOne;
+  }
 
-    // Move to GPU if using WebGPU backend
+  async runInference(): Promise<number> {
+    const inputTensor = new Tensor(this.inputData, [1, 224, 224, 3]);
+
     const tensor = this.backend === 'webgpu'
       ? await inputTensor.moveTo('webgpu')
       : inputTensor;
 
     const start = performance.now();
     const results = await this.model!.run(tensor);
-    // Force data readback to ensure computation completes
     await results[0]!.data();
     const elapsed = performance.now() - start;
 
-    // Cleanup tensors
     if (this.backend === 'webgpu' && tensor !== inputTensor) {
       tensor.delete();
     } else {
@@ -62,9 +59,42 @@ export class LiteRTBenchmark implements FrameworkBenchmark {
     return elapsed;
   }
 
+  async classify(topK = 5): Promise<ClassificationResult[]> {
+    const inputTensor = new Tensor(this.inputData, [1, 224, 224, 3]);
+
+    const tensor = this.backend === 'webgpu'
+      ? await inputTensor.moveTo('webgpu')
+      : inputTensor;
+
+    const results = await this.model!.run(tensor);
+    const outputData = await results[0]!.data();
+    const logits = new Float32Array(outputData.buffer, outputData.byteOffset, outputData.length);
+
+    if (this.backend === 'webgpu' && tensor !== inputTensor) {
+      tensor.delete();
+    } else {
+      inputTensor.delete();
+    }
+    results[0]!.delete();
+
+    return extractTopK(logits, topK);
+  }
+
   async dispose(): Promise<void> {
     this.model?.delete();
     this.model = null;
-    this.inputData = null;
+    this.inputData = new Float32Array(0);
   }
+}
+
+function extractTopK(probs: Float32Array, topK: number): ClassificationResult[] {
+  // TFLite model already includes softmax — output is probabilities, not logits
+  const indexed = Array.from(probs).map((score, i) => ({ score, i }));
+  indexed.sort((a, b) => b.score - a.score);
+
+  return indexed.slice(0, topK).map(({ score, i }) => ({
+    label: IMAGENET_LABELS[i] ?? `class_${i}`,
+    labelIndex: i,
+    score,
+  }));
 }

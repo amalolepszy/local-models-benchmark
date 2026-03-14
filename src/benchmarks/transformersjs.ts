@@ -1,31 +1,26 @@
-import type { BackendId, FrameworkBenchmark } from './types';
+import type { BackendId, ClassificationResult, FrameworkBenchmark } from './types';
+import type { PreprocessedImage } from '../utils/image-input';
 import { pipeline, env, type ImageClassificationPipeline } from '@huggingface/transformers';
 
-/**
- * Transformers.js benchmark adapter.
- * Uses MobileNet v2 for image classification (via ONNX under the hood).
- */
 export class TransformersJsBenchmark implements FrameworkBenchmark {
   name = 'Transformers.js';
   supportedBackends: BackendId[] = ['wasm', 'webgpu', 'webnn'];
   private classifier: ImageClassificationPipeline | null = null;
-  private dummyImageUrl: string = '';
+  private imageUrl: string = '';
   private backend: BackendId = 'wasm';
 
   async initFramework(backend: BackendId): Promise<void> {
     this.backend = backend;
-    // Transformers.js uses ONNX Runtime under the hood
-    // Configure the backend / device
     env.allowLocalModels = false;
 
-    // Create a small dummy image as data URL (3x3 red pixel)
+    // Default dummy image
     const canvas = document.createElement('canvas');
     canvas.width = 224;
     canvas.height = 224;
     const ctx = canvas.getContext('2d')!;
     ctx.fillStyle = '#888888';
     ctx.fillRect(0, 0, 224, 224);
-    this.dummyImageUrl = canvas.toDataURL('image/png');
+    this.imageUrl = canvas.toDataURL('image/png');
   }
 
   async loadModel(): Promise<void> {
@@ -34,19 +29,36 @@ export class TransformersJsBenchmark implements FrameworkBenchmark {
     if (this.backend === 'webnn') device = 'webnn';
 
     // @ts-expect-error — pipeline() union type too complex for TS
+    // dtype: 'fp32' forces model.onnx (full precision) on all backends,
+    // preventing Transformers.js from silently loading a quantized variant on WASM
     this.classifier = await pipeline(
       'image-classification',
       'onnx-community/mobilenet_v2_1.0_224',
-      { device }
+      { device, dtype: 'fp32' }
     );
+  }
+
+  setImage(image: PreprocessedImage): void {
+    // Transformers.js pipeline handles its own preprocessing from the image
+    this.imageUrl = image.dataUrl;
   }
 
   async runInference(): Promise<number> {
     const start = performance.now();
-    const result = await this.classifier!(this.dummyImageUrl);
+    const result = await this.classifier!(this.imageUrl);
     const elapsed = performance.now() - start;
     void result;
     return elapsed;
+  }
+
+  async classify(topK = 5): Promise<ClassificationResult[]> {
+    const result = await this.classifier!(this.imageUrl, { top_k: topK });
+    const output = Array.isArray(result) ? result : [result];
+    return output.map((r: any) => ({
+      label: r.label as string,
+      labelIndex: -1, // Pipeline doesn't expose raw index
+      score: r.score as number,
+    }));
   }
 
   async dispose(): Promise<void> {

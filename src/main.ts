@@ -1,5 +1,6 @@
 import { createBenchmark, FRAMEWORK_BACKENDS, type FrameworkId, type BackendId } from './benchmarks';
-import { computeStats, getMemoryUsageMB, round, metricsToCSVRow, CSV_HEADER, type BenchmarkMetrics } from './utils/metrics';
+import { computeStats, getMemoryUsageMB, round, metricsToCSVRow, CSV_HEADER, evaluateAccuracy, type BenchmarkMetrics } from './utils/metrics';
+import { preprocessImage, generateDummyImage, type PreprocessedImage } from './utils/image-input';
 
 // --- DOM elements ---
 const frameworkSelect = document.getElementById('framework') as HTMLSelectElement;
@@ -12,9 +13,16 @@ const progressSection = document.getElementById('progress-section') as HTMLEleme
 const progressBar = document.getElementById('progress-bar') as HTMLElement;
 const progressText = document.getElementById('progress-text') as HTMLElement;
 const resultsBody = document.getElementById('results-body') as HTMLTableSectionElement;
+const imageUpload = document.getElementById('image-upload') as HTMLInputElement;
+const expectedClassInput = document.getElementById('expected-class') as HTMLInputElement;
+const imagePreview = document.getElementById('image-preview') as HTMLElement;
+const predictionResults = document.getElementById('prediction-results') as HTMLElement;
+const predictionList = document.getElementById('prediction-list') as HTMLOListElement;
+const noiseBtn = document.getElementById('noise-btn') as HTMLButtonElement;
 
 // --- State ---
 const allResults: BenchmarkMetrics[] = [];
+let currentImage: PreprocessedImage | null = null;
 
 // --- Backend dropdown population ---
 function updateBackendOptions() {
@@ -28,16 +36,86 @@ function updateBackendOptions() {
 frameworkSelect.addEventListener('change', updateBackendOptions);
 updateBackendOptions();
 
+// --- Image upload handling ---
+imageUpload.addEventListener('change', async () => {
+  const file = imageUpload.files?.[0];
+  if (!file) return;
+
+  currentImage = await preprocessImage(file);
+  showImagePreview(currentImage.dataUrl, 'Uploaded image');
+});
+
+// --- Noise generation ---
+noiseBtn.addEventListener('click', () => {
+  currentImage = generateDummyImage();
+  showImagePreview(currentImage.dataUrl, 'Random noise');
+});
+
+function showImagePreview(dataUrl: string, alt: string) {
+  imagePreview.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  img.alt = alt;
+  imagePreview.appendChild(img);
+}
+
 // --- Progress helpers ---
 function showProgress(phase: string, detail: string, pct: number) {
   progressSection.hidden = false;
   progressBar.style.width = `${Math.min(100, pct)}%`;
   progressText.textContent = `${phase}: ${detail}`;
+  progressText.className = '';
 }
 
 function hideProgress() {
   progressSection.hidden = true;
   progressBar.style.width = '0%';
+}
+
+// --- Display predictions ---
+function showPredictions(
+  predictions: import('./benchmarks/types').ClassificationResult[],
+  expectedClass: string | null,
+) {
+  predictionResults.hidden = false;
+  predictionList.innerHTML = '';
+
+  for (const pred of predictions) {
+    const li = document.createElement('li');
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'pred-label';
+    labelSpan.textContent = pred.label;
+
+    const scoreSpan = document.createElement('span');
+    scoreSpan.className = 'pred-score';
+    scoreSpan.textContent = `${round(pred.score * 100)}%`;
+
+    li.appendChild(labelSpan);
+    li.appendChild(scoreSpan);
+
+    if (expectedClass) {
+      const { matchesExpectedClass } = await_import_metrics();
+      const matches = matchesExpectedClass(pred, expectedClass);
+      const matchSpan = document.createElement('span');
+      matchSpan.className = matches ? 'pred-match' : 'pred-no-match';
+      matchSpan.textContent = matches ? 'MATCH' : '';
+      li.appendChild(matchSpan);
+    }
+
+    predictionList.appendChild(li);
+  }
+}
+
+// Inline the match check to avoid async import in sync context
+function checkMatch(label: string, expected: string): boolean {
+  const lowerLabel = label.toLowerCase();
+  const lowerExpected = expected.toLowerCase().trim();
+  return lowerLabel.includes(lowerExpected) || lowerExpected.includes(lowerLabel.split(',')[0]!);
+}
+
+function await_import_metrics() {
+  return { matchesExpectedClass: (pred: { label: string }, expected: string) => checkMatch(pred.label, expected) };
 }
 
 // --- Run benchmark ---
@@ -46,6 +124,7 @@ runBtn.addEventListener('click', async () => {
   const backendId = backendSelect.value as BackendId;
   const iterations = parseInt(iterationsInput.value, 10) || 10;
   const warmup = parseInt(warmupInput.value, 10) || 3;
+  const expectedClass = expectedClassInput.value.trim() || null;
 
   runBtn.disabled = true;
 
@@ -70,6 +149,11 @@ runBtn.addEventListener('click', async () => {
 
     showProgress('Model Load', `Done in ${modelLoadMs}ms`, 50);
 
+    if (!currentImage) {
+      throw new Error('No image set. Upload an image or click "Generate noise" first.');
+    }
+    benchmark.setImage(currentImage);
+
     // Phase 3: Warmup
     if (warmup > 0) {
       showProgress('Warmup', `Running ${warmup} warmup iterations...`, 55);
@@ -81,14 +165,20 @@ runBtn.addEventListener('click', async () => {
     // Phase 4: Inference
     const inferenceTimes: number[] = [];
     for (let i = 0; i < iterations; i++) {
-      const pct = 60 + (i / iterations) * 35;
+      const pct = 60 + (i / iterations) * 30;
       showProgress('Inference', `Iteration ${i + 1}/${iterations}`, pct);
       const elapsed = await benchmark.runInference();
       inferenceTimes.push(round(elapsed));
     }
 
+    // Phase 5: Classification
+    showProgress('Classification', 'Getting predictions...', 95);
+    const predictions = await benchmark.classify(5);
+    showPredictions(predictions, expectedClass);
+
     const memAfter = await getMemoryUsageMB();
     const stats = computeStats(inferenceTimes);
+    const accuracy = evaluateAccuracy(predictions, expectedClass);
 
     const metrics: BenchmarkMetrics = {
       framework: benchmark.name,
@@ -103,6 +193,9 @@ runBtn.addEventListener('click', async () => {
       memoryBeforeMB: memBefore,
       memoryAfterMB: memAfter,
       memoryDeltaMB: memBefore != null && memAfter != null ? round(memAfter - memBefore) : null,
+      predictions,
+      expectedClass,
+      ...accuracy,
     };
 
     allResults.push(metrics);
@@ -126,9 +219,18 @@ runBtn.addEventListener('click', async () => {
 
 // --- Results table ---
 function addResultRow(m: BenchmarkMetrics) {
-  // Remove placeholder
   const placeholder = resultsBody.querySelector('.placeholder-row');
   if (placeholder) placeholder.remove();
+
+  const topPred = m.predictions[0];
+  const topLabel = topPred ? `${topPred.label.split(',')[0]} (${round(topPred.score * 100)}%)` : 'N/A';
+
+  const accuracyBadge = (value: boolean | null) => {
+    if (value === null) return '<span class="accuracy-badge na">N/A</span>';
+    return value
+      ? '<span class="accuracy-badge correct">YES</span>'
+      : '<span class="accuracy-badge incorrect">NO</span>';
+  };
 
   const tr = document.createElement('tr');
   tr.innerHTML = `
@@ -143,6 +245,9 @@ function addResultRow(m: BenchmarkMetrics) {
     <td>${m.memoryBeforeMB ?? 'N/A'}</td>
     <td>${m.memoryAfterMB ?? 'N/A'}</td>
     <td>${m.memoryDeltaMB ?? 'N/A'}</td>
+    <td>${topLabel}</td>
+    <td>${accuracyBadge(m.top1Correct)}</td>
+    <td>${accuracyBadge(m.top5Correct)}</td>
   `;
   resultsBody.appendChild(tr);
 }

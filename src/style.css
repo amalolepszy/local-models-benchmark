@@ -62,7 +62,7 @@ h2 {
   letter-spacing: 0.05em;
 }
 
-select, input[type="number"] {
+select, input[type="number"], input[type="text"] {
   padding: 0.5rem 0.75rem;
   background: #0d1117;
   border: 1px solid #30363d;
@@ -179,4 +179,134 @@ tbody tr:hover {
 
 .status-error {
   color: #f85149;
+}
+
+/* Image input section */
+.image-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #161b22;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+}
+
+.image-controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+input[type="file"] {
+  padding: 0.4rem;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #e1e4e8;
+  font-size: 0.85rem;
+}
+
+.image-preview-area {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.image-preview {
+  width: 224px;
+  height: 224px;
+  border: 2px dashed #30363d;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.placeholder-text {
+  color: #484f58;
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.prediction-results {
+  flex: 1;
+  min-width: 250px;
+}
+
+.prediction-results h3 {
+  font-size: 0.95rem;
+  color: #c9d1d9;
+  margin-bottom: 0.5rem;
+}
+
+.prediction-results ol {
+  list-style: none;
+  counter-reset: pred;
+}
+
+.prediction-results li {
+  counter-increment: pred;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #21262d;
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.prediction-results li::before {
+  content: counter(pred) ".";
+  color: #8b949e;
+  min-width: 1.5em;
+}
+
+.pred-label {
+  flex: 1;
+}
+
+.pred-score {
+  color: #58a6ff;
+  font-variant-numeric: tabular-nums;
+}
+
+.pred-match {
+  color: #3fb950;
+  font-weight: 600;
+}
+
+.pred-no-match {
+  color: #f85149;
+}
+
+.accuracy-badge {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.accuracy-badge.correct {
+  background: #238636;
+  color: #fff;
+}
+
+.accuracy-badge.incorrect {
+  background: #da3633;
+  color: #fff;
+}
+
+.accuracy-badge.na {
+  background: #30363d;
+  color: #8b949e;
 }

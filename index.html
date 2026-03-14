@@ -19,7 +19,7 @@
         <select id="framework">
           <option value="tfjs">TensorFlow.js</option>
           <option value="onnx">ONNX Runtime Web</option>
-          <option value="litert">LiteRT (MediaPipe)</option>
+          <option value="litert">LiteRT</option>
           <option value="transformersjs">Transformers.js</option>
         </select>
       </div>
@@ -45,6 +45,33 @@
       <button id="export-btn" class="secondary-btn" disabled>Export CSV</button>
     </section>
 
+    <section class="image-section">
+      <h2>Input Image</h2>
+      <div class="image-controls">
+        <div class="control-group">
+          <label for="image-upload">Upload image</label>
+          <input type="file" id="image-upload" accept="image/*" />
+        </div>
+        <div class="control-group">
+          <label for="expected-class">Expected class</label>
+          <input type="text" id="expected-class" placeholder="e.g. golden retriever" />
+        </div>
+        <div class="control-group">
+          <label>&nbsp;</label>
+          <button id="noise-btn" class="secondary-btn">Generate noise</button>
+        </div>
+      </div>
+      <div class="image-preview-area">
+        <div id="image-preview" class="image-preview">
+          <span class="placeholder-text">Upload an image or generate noise before running</span>
+        </div>
+        <div id="prediction-results" class="prediction-results" hidden>
+          <h3>Classification Results</h3>
+          <ol id="prediction-list"></ol>
+        </div>
+      </div>
+    </section>
+
     <section class="progress-section" id="progress-section" hidden>
       <h2>Progress</h2>
       <div class="progress-bar-container">
@@ -60,20 +87,23 @@
           <tr>
             <th>Framework</th>
             <th>Backend</th>
-            <th>Framework Init (ms)</th>
+            <th>Init (ms)</th>
             <th>Model Load (ms)</th>
-            <th>Avg Inference (ms)</th>
-            <th>Min Inference (ms)</th>
-            <th>Max Inference (ms)</th>
-            <th>P95 Inference (ms)</th>
-            <th>Memory Before (MB)</th>
-            <th>Memory After (MB)</th>
-            <th>Memory Delta (MB)</th>
+            <th>Avg Inf. (ms)</th>
+            <th>Min Inf. (ms)</th>
+            <th>Max Inf. (ms)</th>
+            <th>P95 Inf. (ms)</th>
+            <th>Mem Before (MB)</th>
+            <th>Mem After (MB)</th>
+            <th>Mem Delta (MB)</th>
+            <th>Top-1</th>
+            <th>Top-1 Correct</th>
+            <th>Top-5 Correct</th>
           </tr>
         </thead>
         <tbody id="results-body">
           <tr class="placeholder-row">
-            <td colspan="11">No results yet. Select a framework and backend, then click "Run Benchmark".</td>
+            <td colspan="14">No results yet. Select a framework and backend, then click "Run Benchmark".</td>
           </tr>
         </tbody>
       </table>
