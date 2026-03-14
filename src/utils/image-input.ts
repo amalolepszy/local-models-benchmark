@@ -123,12 +123,22 @@ export function generateDummyImage(): PreprocessedImage {
     }
   }
 
+  // Render the random noise as a visible image
   const canvas = document.createElement('canvas');
   canvas.width = SIZE;
   canvas.height = SIZE;
   const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#888';
-  ctx.fillRect(0, 0, SIZE, SIZE);
+  const imgData = ctx.createImageData(SIZE, SIZE);
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    const r = nhwcZeroOne[i * 3]! * 255;
+    const g = nhwcZeroOne[i * 3 + 1]! * 255;
+    const b = nhwcZeroOne[i * 3 + 2]! * 255;
+    imgData.data[i * 4] = r;
+    imgData.data[i * 4 + 1] = g;
+    imgData.data[i * 4 + 2] = b;
+    imgData.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(imgData, 0, 0);
 
   return { nhwcZeroOne, nhwcNegOneOne, nchwNegOneOne, dataUrl: canvas.toDataURL('image/png') };
 }

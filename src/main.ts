@@ -18,6 +18,7 @@ const expectedClassInput = document.getElementById('expected-class') as HTMLInpu
 const imagePreview = document.getElementById('image-preview') as HTMLElement;
 const predictionResults = document.getElementById('prediction-results') as HTMLElement;
 const predictionList = document.getElementById('prediction-list') as HTMLOListElement;
+const noiseBtn = document.getElementById('noise-btn') as HTMLButtonElement;
 
 // --- State ---
 const allResults: BenchmarkMetrics[] = [];
@@ -41,13 +42,22 @@ imageUpload.addEventListener('change', async () => {
   if (!file) return;
 
   currentImage = await preprocessImage(file);
+  showImagePreview(currentImage.dataUrl, 'Uploaded image');
+});
 
+// --- Noise generation ---
+noiseBtn.addEventListener('click', () => {
+  currentImage = generateDummyImage();
+  showImagePreview(currentImage.dataUrl, 'Random noise');
+});
+
+function showImagePreview(dataUrl: string, alt: string) {
   imagePreview.innerHTML = '';
   const img = document.createElement('img');
-  img.src = currentImage.dataUrl;
-  img.alt = 'Uploaded image';
+  img.src = dataUrl;
+  img.alt = alt;
   imagePreview.appendChild(img);
-});
+}
 
 // --- Progress helpers ---
 function showProgress(phase: string, detail: string, pct: number) {
@@ -139,9 +149,10 @@ runBtn.addEventListener('click', async () => {
 
     showProgress('Model Load', `Done in ${modelLoadMs}ms`, 50);
 
-    // Set image input
-    const image = currentImage ?? generateDummyImage();
-    benchmark.setImage(image);
+    if (!currentImage) {
+      throw new Error('No image set. Upload an image or click "Generate noise" first.');
+    }
+    benchmark.setImage(currentImage);
 
     // Phase 3: Warmup
     if (warmup > 0) {

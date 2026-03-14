@@ -29,10 +29,12 @@ export class TransformersJsBenchmark implements FrameworkBenchmark {
     if (this.backend === 'webnn') device = 'webnn';
 
     // @ts-expect-error — pipeline() union type too complex for TS
+    // dtype: 'fp32' forces model.onnx (full precision) on all backends,
+    // preventing Transformers.js from silently loading a quantized variant on WASM
     this.classifier = await pipeline(
       'image-classification',
       'onnx-community/mobilenet_v2_1.0_224',
-      { device }
+      { device, dtype: 'fp32' }
     );
   }
 
