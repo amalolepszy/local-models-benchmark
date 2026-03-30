@@ -1,0 +1,1506 @@
+{
+  "timestamp": "2026-03-29T23:30:14",
+  "gpu_available": true,
+  "results": [
+    {
+      "framework": "tfjs",
+      "backend": "wasm",
+      "phases": {
+        "framework_init": {
+          "name": "framework_init",
+          "wall_time_ms": 1.63,
+          "avg_cpu_percent": 30.6,
+          "peak_cpu_percent": 61.3,
+          "avg_gpu_percent": 46.0,
+          "peak_gpu_percent": 46.0,
+          "memory_rss_start_mb": 408.42,
+          "memory_rss_end_mb": 408.42,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "model_load": {
+          "name": "model_load",
+          "wall_time_ms": 2.45,
+          "avg_cpu_percent": 253.1,
+          "peak_cpu_percent": 436.0,
+          "avg_gpu_percent": 5.0,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 445.67,
+          "memory_rss_end_mb": 443.13,
+          "memory_rss_delta_mb": -2.54,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "warmup": {
+          "name": "warmup",
+          "wall_time_ms": 145.65,
+          "avg_cpu_percent": 39.2,
+          "peak_cpu_percent": 74.5,
+          "avg_gpu_percent": 5.0,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 485.57,
+          "memory_rss_end_mb": 512.88,
+          "memory_rss_delta_mb": 27.31,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 3
+        },
+        "inference": {
+          "name": "inference",
+          "wall_time_ms": 162.62,
+          "avg_cpu_percent": 275.4,
+          "peak_cpu_percent": 532.2,
+          "avg_gpu_percent": 2.0,
+          "peak_gpu_percent": 2.0,
+          "memory_rss_start_mb": 555.69,
+          "memory_rss_end_mb": 556.31,
+          "memory_rss_delta_mb": 0.62,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 3
+        },
+        "classification": {
+          "name": "classification",
+          "wall_time_ms": 1.81,
+          "avg_cpu_percent": 391.4,
+          "peak_cpu_percent": 782.9,
+          "avg_gpu_percent": 2.0,
+          "peak_gpu_percent": 2.0,
+          "memory_rss_start_mb": 556.9,
+          "memory_rss_end_mb": 556.9,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "cleanup": {
+          "name": "cleanup",
+          "wall_time_ms": 58.07,
+          "avg_cpu_percent": 29.2,
+          "peak_cpu_percent": 58.4,
+          "avg_gpu_percent": 1.0,
+          "peak_gpu_percent": 1.0,
+          "memory_rss_start_mb": 557.03,
+          "memory_rss_end_mb": 557.03,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        }
+      },
+      "framework_init_ms": 65.97,
+      "model_load_ms": 126.12,
+      "avg_inference_ms": 7.13,
+      "min_inference_ms": 5.32,
+      "max_inference_ms": 17.49,
+      "p95_inference_ms": 9.4,
+      "predictions": [
+        {
+          "label": "velvet",
+          "score": 58.37
+        },
+        {
+          "label": "wool, woolen, woollen",
+          "score": 13.71
+        },
+        {
+          "label": "doormat, welcome mat",
+          "score": 5.52
+        },
+        {
+          "label": "bubble",
+          "score": 5.24
+        },
+        {
+          "label": "lampshade, lamp shade",
+          "score": 2.72
+        }
+      ],
+      "error": null
+    },
+    {
+      "framework": "tfjs",
+      "backend": "webgl",
+      "phases": {
+        "framework_init": {
+          "name": "framework_init",
+          "wall_time_ms": 0.0,
+          "avg_cpu_percent": 65.6,
+          "peak_cpu_percent": 65.6,
+          "avg_gpu_percent": 5.0,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 408.79,
+          "memory_rss_end_mb": 408.79,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1678.0,
+          "gpu_memory_end_mb": 1678.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 1
+        },
+        "model_load": {
+          "name": "model_load",
+          "wall_time_ms": 176.1,
+          "avg_cpu_percent": 25.9,
+          "peak_cpu_percent": 77.7,
+          "avg_gpu_percent": 5.0,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 408.55,
+          "memory_rss_end_mb": 427.94,
+          "memory_rss_delta_mb": 19.39,
+          "gpu_memory_start_mb": 1678.0,
+          "gpu_memory_end_mb": 1678.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 3
+        },
+        "warmup": {
+          "name": "warmup",
+          "wall_time_ms": 3474.06,
+          "avg_cpu_percent": 105.4,
+          "peak_cpu_percent": 221.0,
+          "avg_gpu_percent": 2.7,
+          "peak_gpu_percent": 6.0,
+          "memory_rss_start_mb": 478.7,
+          "memory_rss_end_mb": 609.59,
+          "memory_rss_delta_mb": 130.89,
+          "gpu_memory_start_mb": 1678.0,
+          "gpu_memory_end_mb": 1772.0,
+          "gpu_memory_delta_mb": 94.0,
+          "sample_count": 23
+        },
+        "inference": {
+          "name": "inference",
+          "wall_time_ms": 381.57,
+          "avg_cpu_percent": 57.8,
+          "peak_cpu_percent": 109.2,
+          "avg_gpu_percent": 4.0,
+          "peak_gpu_percent": 4.0,
+          "memory_rss_start_mb": 554.96,
+          "memory_rss_end_mb": 561.13,
+          "memory_rss_delta_mb": 6.17,
+          "gpu_memory_start_mb": 1772.0,
+          "gpu_memory_end_mb": 1772.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 4
+        },
+        "classification": {
+          "name": "classification",
+          "wall_time_ms": 23.73,
+          "avg_cpu_percent": 46.8,
+          "peak_cpu_percent": 93.5,
+          "avg_gpu_percent": 49.0,
+          "peak_gpu_percent": 49.0,
+          "memory_rss_start_mb": 538.12,
+          "memory_rss_end_mb": 538.16,
+          "memory_rss_delta_mb": 0.04,
+          "gpu_memory_start_mb": 1772.0,
+          "gpu_memory_end_mb": 1772.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "cleanup": {
+          "name": "cleanup",
+          "wall_time_ms": 0.3,
+          "avg_cpu_percent": 6.0,
+          "peak_cpu_percent": 11.9,
+          "avg_gpu_percent": 49.0,
+          "peak_gpu_percent": 49.0,
+          "memory_rss_start_mb": 538.46,
+          "memory_rss_end_mb": 538.53,
+          "memory_rss_delta_mb": 0.07,
+          "gpu_memory_start_mb": 1772.0,
+          "gpu_memory_end_mb": 1772.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        }
+      },
+      "framework_init_ms": 16.37,
+      "model_load_ms": 270.01,
+      "avg_inference_ms": 14.47,
+      "min_inference_ms": 11.59,
+      "max_inference_ms": 27.36,
+      "p95_inference_ms": 18.87,
+      "predictions": [
+        {
+          "label": "velvet",
+          "score": 46.93
+        },
+        {
+          "label": "wool, woolen, woollen",
+          "score": 14.87
+        },
+        {
+          "label": "bubble",
+          "score": 6.03
+        },
+        {
+          "label": "doormat, welcome mat",
+          "score": 4.39
+        },
+        {
+          "label": "lampshade, lamp shade",
+          "score": 4.12
+        }
+      ],
+      "error": null
+    },
+    {
+      "framework": "tfjs",
+      "backend": "webgpu",
+      "phases": {
+        "framework_init": {
+          "name": "framework_init",
+          "wall_time_ms": 158.27,
+          "avg_cpu_percent": 10.0,
+          "peak_cpu_percent": 30.0,
+          "avg_gpu_percent": 6.0,
+          "peak_gpu_percent": 6.0,
+          "memory_rss_start_mb": 402.25,
+          "memory_rss_end_mb": 416.93,
+          "memory_rss_delta_mb": 14.68,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1686.0,
+          "gpu_memory_delta_mb": 10.0,
+          "sample_count": 3
+        },
+        "model_load": {
+          "name": "model_load",
+          "wall_time_ms": 0.25,
+          "avg_cpu_percent": 20.2,
+          "peak_cpu_percent": 40.5,
+          "avg_gpu_percent": 7.0,
+          "peak_gpu_percent": 7.0,
+          "memory_rss_start_mb": 451.06,
+          "memory_rss_end_mb": 450.86,
+          "memory_rss_delta_mb": -0.2,
+          "gpu_memory_start_mb": 1695.0,
+          "gpu_memory_end_mb": 1695.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "warmup": {
+          "name": "warmup",
+          "wall_time_ms": 740.13,
+          "avg_cpu_percent": 83.5,
+          "peak_cpu_percent": 137.1,
+          "avg_gpu_percent": 3.0,
+          "peak_gpu_percent": 7.0,
+          "memory_rss_start_mb": 497.79,
+          "memory_rss_end_mb": 583.02,
+          "memory_rss_delta_mb": 85.23,
+          "gpu_memory_start_mb": 1695.0,
+          "gpu_memory_end_mb": 1768.0,
+          "gpu_memory_delta_mb": 73.0,
+          "sample_count": 7
+        },
+        "inference": {
+          "name": "inference",
+          "wall_time_ms": 166.42,
+          "avg_cpu_percent": 79.2,
+          "peak_cpu_percent": 145.8,
+          "avg_gpu_percent": 4.0,
+          "peak_gpu_percent": 4.0,
+          "memory_rss_start_mb": 600.74,
+          "memory_rss_end_mb": 605.07,
+          "memory_rss_delta_mb": 4.33,
+          "gpu_memory_start_mb": 1768.0,
+          "gpu_memory_end_mb": 1768.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 3
+        },
+        "classification": {
+          "name": "classification",
+          "wall_time_ms": 0.27,
+          "avg_cpu_percent": 44.4,
+          "peak_cpu_percent": 88.8,
+          "avg_gpu_percent": 4.0,
+          "peak_gpu_percent": 4.0,
+          "memory_rss_start_mb": 611.38,
+          "memory_rss_end_mb": 611.38,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1768.0,
+          "gpu_memory_end_mb": 1768.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "cleanup": {
+          "name": "cleanup",
+          "wall_time_ms": 59.66,
+          "avg_cpu_percent": 0.0,
+          "peak_cpu_percent": 0.0,
+          "avg_gpu_percent": 1.0,
+          "peak_gpu_percent": 1.0,
+          "memory_rss_start_mb": 611.26,
+          "memory_rss_end_mb": 611.26,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1768.0,
+          "gpu_memory_end_mb": 1768.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        }
+      },
+      "framework_init_ms": 213.75,
+      "model_load_ms": 102.18,
+      "avg_inference_ms": 6.84,
+      "min_inference_ms": 5.29,
+      "max_inference_ms": 8.42,
+      "p95_inference_ms": 7.74,
+      "predictions": [
+        {
+          "label": "velvet",
+          "score": 39.01
+        },
+        {
+          "label": "wool, woolen, woollen",
+          "score": 12.62
+        },
+        {
+          "label": "bubble",
+          "score": 11.33
+        },
+        {
+          "label": "lampshade, lamp shade",
+          "score": 5.31
+        },
+        {
+          "label": "doormat, welcome mat",
+          "score": 4.0
+        }
+      ],
+      "error": null
+    },
+    {
+      "framework": "onnx",
+      "backend": "wasm",
+      "phases": {
+        "framework_init": {
+          "name": "framework_init",
+          "wall_time_ms": 0.25,
+          "avg_cpu_percent": 200.2,
+          "peak_cpu_percent": 256.1,
+          "avg_gpu_percent": 1.0,
+          "peak_gpu_percent": 1.0,
+          "memory_rss_start_mb": 411.86,
+          "memory_rss_end_mb": 411.95,
+          "memory_rss_delta_mb": 0.09,
+          "gpu_memory_start_mb": 1677.0,
+          "gpu_memory_end_mb": 1677.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "model_load": {
+          "name": "model_load",
+          "wall_time_ms": 1352.23,
+          "avg_cpu_percent": 67.7,
+          "peak_cpu_percent": 225.2,
+          "avg_gpu_percent": 1.5,
+          "peak_gpu_percent": 4.0,
+          "memory_rss_start_mb": 424.18,
+          "memory_rss_end_mb": 523.97,
+          "memory_rss_delta_mb": 99.79,
+          "gpu_memory_start_mb": 1677.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": -1.0,
+          "sample_count": 11
+        },
+        "warmup": {
+          "name": "warmup",
+          "wall_time_ms": 32.2,
+          "avg_cpu_percent": 386.1,
+          "peak_cpu_percent": 645.0,
+          "avg_gpu_percent": 4.0,
+          "peak_gpu_percent": 4.0,
+          "memory_rss_start_mb": 592.22,
+          "memory_rss_end_mb": 698.85,
+          "memory_rss_delta_mb": 106.63,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "inference": {
+          "name": "inference",
+          "wall_time_ms": 435.2,
+          "avg_cpu_percent": 389.8,
+          "peak_cpu_percent": 602.0,
+          "avg_gpu_percent": 2.5,
+          "peak_gpu_percent": 4.0,
+          "memory_rss_start_mb": 670.78,
+          "memory_rss_end_mb": 600.93,
+          "memory_rss_delta_mb": -69.85,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 4
+        },
+        "classification": {
+          "name": "classification",
+          "wall_time_ms": 0.4,
+          "avg_cpu_percent": 406.4,
+          "peak_cpu_percent": 416.2,
+          "avg_gpu_percent": 4.0,
+          "peak_gpu_percent": 4.0,
+          "memory_rss_start_mb": 601.15,
+          "memory_rss_end_mb": 598.87,
+          "memory_rss_delta_mb": -2.28,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "cleanup": {
+          "name": "cleanup",
+          "wall_time_ms": 35.76,
+          "avg_cpu_percent": 79.8,
+          "peak_cpu_percent": 113.6,
+          "avg_gpu_percent": 4.0,
+          "peak_gpu_percent": 4.0,
+          "memory_rss_start_mb": 599.04,
+          "memory_rss_end_mb": 599.04,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        }
+      },
+      "framework_init_ms": 53.1,
+      "model_load_ms": 1480.23,
+      "avg_inference_ms": 14.94,
+      "min_inference_ms": 11.3,
+      "max_inference_ms": 39.3,
+      "p95_inference_ms": 19.73,
+      "predictions": [
+        {
+          "label": "velvet",
+          "score": 39.16
+        },
+        {
+          "label": "bubble",
+          "score": 12.42
+        },
+        {
+          "label": "wool, woolen, woollen",
+          "score": 9.12
+        },
+        {
+          "label": "doormat, welcome mat",
+          "score": 5.98
+        },
+        {
+          "label": "lampshade, lamp shade",
+          "score": 5.66
+        }
+      ],
+      "error": null
+    },
+    {
+      "framework": "onnx",
+      "backend": "webgl",
+      "phases": {
+        "framework_init": {
+          "name": "framework_init",
+          "wall_time_ms": 170.96,
+          "avg_cpu_percent": 18.7,
+          "peak_cpu_percent": 35.9,
+          "avg_gpu_percent": 12.7,
+          "peak_gpu_percent": 28.0,
+          "memory_rss_start_mb": 406.43,
+          "memory_rss_end_mb": 407.76,
+          "memory_rss_delta_mb": 1.33,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 3
+        },
+        "model_load": {
+          "name": "model_load",
+          "wall_time_ms": 839.93,
+          "avg_cpu_percent": 21.1,
+          "peak_cpu_percent": 73.7,
+          "avg_gpu_percent": 3.3,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 417.26,
+          "memory_rss_end_mb": 465.51,
+          "memory_rss_delta_mb": 48.25,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 7
+        },
+        "warmup": {
+          "name": "warmup",
+          "wall_time_ms": 1885.13,
+          "avg_cpu_percent": 146.6,
+          "peak_cpu_percent": 399.5,
+          "avg_gpu_percent": 1.5,
+          "peak_gpu_percent": 6.0,
+          "memory_rss_start_mb": 483.01,
+          "memory_rss_end_mb": 572.51,
+          "memory_rss_delta_mb": 89.5,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1767.0,
+          "gpu_memory_delta_mb": 91.0,
+          "sample_count": 13
+        },
+        "inference": {
+          "name": "inference",
+          "wall_time_ms": 310.1,
+          "avg_cpu_percent": 43.4,
+          "peak_cpu_percent": 104.8,
+          "avg_gpu_percent": 22.5,
+          "peak_gpu_percent": 72.0,
+          "memory_rss_start_mb": 527.11,
+          "memory_rss_end_mb": 529.72,
+          "memory_rss_delta_mb": 2.61,
+          "gpu_memory_start_mb": 1755.0,
+          "gpu_memory_end_mb": 1755.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 4
+        },
+        "classification": {
+          "name": "classification",
+          "wall_time_ms": 0.0,
+          "avg_cpu_percent": 78.7,
+          "peak_cpu_percent": 78.7,
+          "avg_gpu_percent": 72.0,
+          "peak_gpu_percent": 72.0,
+          "memory_rss_start_mb": 530.45,
+          "memory_rss_end_mb": 530.45,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1755.0,
+          "gpu_memory_end_mb": 1755.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 1
+        },
+        "cleanup": {
+          "name": "cleanup",
+          "wall_time_ms": 165.42,
+          "avg_cpu_percent": 11.5,
+          "peak_cpu_percent": 34.4,
+          "avg_gpu_percent": 72.0,
+          "peak_gpu_percent": 72.0,
+          "memory_rss_start_mb": 530.86,
+          "memory_rss_end_mb": 531.07,
+          "memory_rss_delta_mb": 0.21,
+          "gpu_memory_start_mb": 1755.0,
+          "gpu_memory_end_mb": 1755.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 3
+        }
+      },
+      "framework_init_ms": 161.15,
+      "model_load_ms": 882.89,
+      "avg_inference_ms": 10.46,
+      "min_inference_ms": 7.23,
+      "max_inference_ms": 15.86,
+      "p95_inference_ms": 12.23,
+      "predictions": [
+        {
+          "label": "velvet",
+          "score": 30.13
+        },
+        {
+          "label": "wool, woolen, woollen",
+          "score": 10.18
+        },
+        {
+          "label": "bubble",
+          "score": 7.47
+        },
+        {
+          "label": "lampshade, lamp shade",
+          "score": 6.92
+        },
+        {
+          "label": "doormat, welcome mat",
+          "score": 6.42
+        }
+      ],
+      "error": null
+    },
+    {
+      "framework": "onnx",
+      "backend": "webgpu",
+      "phases": {
+        "framework_init": {
+          "name": "framework_init",
+          "wall_time_ms": 19.31,
+          "avg_cpu_percent": 53.0,
+          "peak_cpu_percent": 106.1,
+          "avg_gpu_percent": 5.0,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 412.14,
+          "memory_rss_end_mb": 412.14,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1678.0,
+          "gpu_memory_end_mb": 1678.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "model_load": {
+          "name": "model_load",
+          "wall_time_ms": 2035.73,
+          "avg_cpu_percent": 42.6,
+          "peak_cpu_percent": 151.2,
+          "avg_gpu_percent": 2.4,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 416.44,
+          "memory_rss_end_mb": 671.22,
+          "memory_rss_delta_mb": 254.78,
+          "gpu_memory_start_mb": 1678.0,
+          "gpu_memory_end_mb": 1696.0,
+          "gpu_memory_delta_mb": 18.0,
+          "sample_count": 14
+        },
+        "warmup": {
+          "name": "warmup",
+          "wall_time_ms": 420.38,
+          "avg_cpu_percent": 294.1,
+          "peak_cpu_percent": 419.3,
+          "avg_gpu_percent": 1.0,
+          "peak_gpu_percent": 1.0,
+          "memory_rss_start_mb": 781.67,
+          "memory_rss_end_mb": 787.46,
+          "memory_rss_delta_mb": 5.79,
+          "gpu_memory_start_mb": 1724.0,
+          "gpu_memory_end_mb": 1752.0,
+          "gpu_memory_delta_mb": 28.0,
+          "sample_count": 4
+        },
+        "inference": {
+          "name": "inference",
+          "wall_time_ms": 188.22,
+          "avg_cpu_percent": 128.7,
+          "peak_cpu_percent": 176.2,
+          "avg_gpu_percent": 2.0,
+          "peak_gpu_percent": 2.0,
+          "memory_rss_start_mb": 802.25,
+          "memory_rss_end_mb": 705.84,
+          "memory_rss_delta_mb": -96.41,
+          "gpu_memory_start_mb": 1768.0,
+          "gpu_memory_end_mb": 1768.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 3
+        },
+        "classification": {
+          "name": "classification",
+          "wall_time_ms": 14.5,
+          "avg_cpu_percent": 63.9,
+          "peak_cpu_percent": 127.8,
+          "avg_gpu_percent": 2.0,
+          "peak_gpu_percent": 2.0,
+          "memory_rss_start_mb": 711.98,
+          "memory_rss_end_mb": 711.98,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1768.0,
+          "gpu_memory_end_mb": 1768.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "cleanup": {
+          "name": "cleanup",
+          "wall_time_ms": 70.96,
+          "avg_cpu_percent": 0.0,
+          "peak_cpu_percent": 0.0,
+          "avg_gpu_percent": 1.0,
+          "peak_gpu_percent": 1.0,
+          "memory_rss_start_mb": 712.14,
+          "memory_rss_end_mb": 712.15,
+          "memory_rss_delta_mb": 0.01,
+          "gpu_memory_start_mb": 1768.0,
+          "gpu_memory_end_mb": 1768.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        }
+      },
+      "framework_init_ms": 68.67,
+      "model_load_ms": 2086.28,
+      "avg_inference_ms": 5.94,
+      "min_inference_ms": 4.12,
+      "max_inference_ms": 7.84,
+      "p95_inference_ms": 6.88,
+      "predictions": [
+        {
+          "label": "velvet",
+          "score": 59.71
+        },
+        {
+          "label": "wool, woolen, woollen",
+          "score": 14.0
+        },
+        {
+          "label": "doormat, welcome mat",
+          "score": 4.46
+        },
+        {
+          "label": "bubble",
+          "score": 4.05
+        },
+        {
+          "label": "lampshade, lamp shade",
+          "score": 3.01
+        }
+      ],
+      "error": null
+    },
+    {
+      "framework": "onnx",
+      "backend": "webnn",
+      "phases": {
+        "framework_init": {
+          "name": "framework_init",
+          "wall_time_ms": 4.2,
+          "avg_cpu_percent": 0.0,
+          "peak_cpu_percent": 0.0,
+          "avg_gpu_percent": 4.0,
+          "peak_gpu_percent": 4.0,
+          "memory_rss_start_mb": 405.56,
+          "memory_rss_end_mb": 405.57,
+          "memory_rss_delta_mb": 0.01,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "model_load": {
+          "name": "model_load",
+          "wall_time_ms": 162814.5,
+          "avg_cpu_percent": 1.7,
+          "peak_cpu_percent": 165.6,
+          "avg_gpu_percent": 6.0,
+          "peak_gpu_percent": 21.0,
+          "memory_rss_start_mb": 422.74,
+          "memory_rss_end_mb": 569.05,
+          "memory_rss_delta_mb": 146.31,
+          "gpu_memory_start_mb": 1677.0,
+          "gpu_memory_end_mb": 1677.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 1071
+        },
+        "warmup": {
+          "name": "warmup",
+          "wall_time_ms": 75.68,
+          "avg_cpu_percent": 34.6,
+          "peak_cpu_percent": 69.2,
+          "avg_gpu_percent": 5.0,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 569.05,
+          "memory_rss_end_mb": 563.67,
+          "memory_rss_delta_mb": -5.38,
+          "gpu_memory_start_mb": 1677.0,
+          "gpu_memory_end_mb": 1677.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "inference": {
+          "name": "inference",
+          "wall_time_ms": 175.4,
+          "avg_cpu_percent": 58.7,
+          "peak_cpu_percent": 176.1,
+          "avg_gpu_percent": 3.7,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 563.67,
+          "memory_rss_end_mb": 583.32,
+          "memory_rss_delta_mb": 19.65,
+          "gpu_memory_start_mb": 1677.0,
+          "gpu_memory_end_mb": 1677.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 3
+        },
+        "classification": {
+          "name": "classification",
+          "wall_time_ms": 0.0,
+          "avg_cpu_percent": 312.5,
+          "peak_cpu_percent": 312.5,
+          "avg_gpu_percent": 3.0,
+          "peak_gpu_percent": 3.0,
+          "memory_rss_start_mb": 610.52,
+          "memory_rss_end_mb": 610.52,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1677.0,
+          "gpu_memory_end_mb": 1677.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 1
+        },
+        "cleanup": {
+          "name": "cleanup",
+          "wall_time_ms": 177.81,
+          "avg_cpu_percent": 6.2,
+          "peak_cpu_percent": 18.6,
+          "avg_gpu_percent": 3.0,
+          "peak_gpu_percent": 3.0,
+          "memory_rss_start_mb": 610.52,
+          "memory_rss_end_mb": 610.54,
+          "memory_rss_delta_mb": 0.02,
+          "gpu_memory_start_mb": 1677.0,
+          "gpu_memory_end_mb": 1677.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 3
+        }
+      },
+      "framework_init_ms": 54.64,
+      "model_load_ms": 162944.54,
+      "avg_inference_ms": 3.87,
+      "min_inference_ms": 3.24,
+      "max_inference_ms": 4.46,
+      "p95_inference_ms": 4.33,
+      "predictions": [
+        {
+          "label": "velvet",
+          "score": 43.98
+        },
+        {
+          "label": "bubble",
+          "score": 12.37
+        },
+        {
+          "label": "wool, woolen, woollen",
+          "score": 11.58
+        },
+        {
+          "label": "doormat, welcome mat",
+          "score": 6.2
+        },
+        {
+          "label": "lampshade, lamp shade",
+          "score": 3.37
+        }
+      ],
+      "error": null
+    },
+    {
+      "framework": "litert",
+      "backend": "wasm",
+      "phases": {
+        "framework_init": {
+          "name": "framework_init",
+          "wall_time_ms": 643.93,
+          "avg_cpu_percent": 27.8,
+          "peak_cpu_percent": 57.7,
+          "avg_gpu_percent": 4.5,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 405.5,
+          "memory_rss_end_mb": 453.13,
+          "memory_rss_delta_mb": 47.63,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1687.0,
+          "gpu_memory_delta_mb": 11.0,
+          "sample_count": 6
+        },
+        "model_load": {
+          "name": "model_load",
+          "wall_time_ms": 787.58,
+          "avg_cpu_percent": 14.6,
+          "peak_cpu_percent": 92.0,
+          "avg_gpu_percent": 2.7,
+          "peak_gpu_percent": 4.0,
+          "memory_rss_start_mb": 492.33,
+          "memory_rss_end_mb": 524.86,
+          "memory_rss_delta_mb": 32.53,
+          "gpu_memory_start_mb": 1694.0,
+          "gpu_memory_end_mb": 1695.0,
+          "gpu_memory_delta_mb": 1.0,
+          "sample_count": 7
+        },
+        "warmup": {
+          "name": "warmup",
+          "wall_time_ms": 7.43,
+          "avg_cpu_percent": 246.3,
+          "peak_cpu_percent": 252.0,
+          "avg_gpu_percent": 1.0,
+          "peak_gpu_percent": 1.0,
+          "memory_rss_start_mb": 562.42,
+          "memory_rss_end_mb": 559.28,
+          "memory_rss_delta_mb": -3.14,
+          "gpu_memory_start_mb": 1694.0,
+          "gpu_memory_end_mb": 1694.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "inference": {
+          "name": "inference",
+          "wall_time_ms": 548.31,
+          "avg_cpu_percent": 95.4,
+          "peak_cpu_percent": 143.6,
+          "avg_gpu_percent": 1.0,
+          "peak_gpu_percent": 1.0,
+          "memory_rss_start_mb": 557.91,
+          "memory_rss_end_mb": 562.1,
+          "memory_rss_delta_mb": 4.19,
+          "gpu_memory_start_mb": 1694.0,
+          "gpu_memory_end_mb": 1694.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 5
+        },
+        "classification": {
+          "name": "classification",
+          "wall_time_ms": 14.82,
+          "avg_cpu_percent": 39.2,
+          "peak_cpu_percent": 78.4,
+          "avg_gpu_percent": 0.0,
+          "peak_gpu_percent": 0.0,
+          "memory_rss_start_mb": 562.43,
+          "memory_rss_end_mb": 562.62,
+          "memory_rss_delta_mb": 0.19,
+          "gpu_memory_start_mb": 1694.0,
+          "gpu_memory_end_mb": 1694.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "cleanup": {
+          "name": "cleanup",
+          "wall_time_ms": 14.22,
+          "avg_cpu_percent": 6.2,
+          "peak_cpu_percent": 12.4,
+          "avg_gpu_percent": 0.0,
+          "peak_gpu_percent": 0.0,
+          "memory_rss_start_mb": 562.84,
+          "memory_rss_end_mb": 562.84,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1694.0,
+          "gpu_memory_end_mb": 1694.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        }
+      },
+      "framework_init_ms": 650.54,
+      "model_load_ms": 870.19,
+      "avg_inference_ms": 18.63,
+      "min_inference_ms": 17.09,
+      "max_inference_ms": 21.16,
+      "p95_inference_ms": 20.07,
+      "predictions": [
+        {
+          "label": "velvet",
+          "score": 37.21
+        },
+        {
+          "label": "wool, woolen, woollen",
+          "score": 14.07
+        },
+        {
+          "label": "bubble",
+          "score": 13.18
+        },
+        {
+          "label": "lampshade, lamp shade",
+          "score": 6.06
+        },
+        {
+          "label": "doormat, welcome mat",
+          "score": 3.8
+        }
+      ],
+      "error": null
+    },
+    {
+      "framework": "litert",
+      "backend": "webgpu",
+      "phases": {
+        "framework_init": {
+          "name": "framework_init",
+          "wall_time_ms": 501.37,
+          "avg_cpu_percent": 119.4,
+          "peak_cpu_percent": 546.9,
+          "avg_gpu_percent": 4.6,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 410.65,
+          "memory_rss_end_mb": 449.61,
+          "memory_rss_delta_mb": 38.96,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1684.0,
+          "gpu_memory_delta_mb": 8.0,
+          "sample_count": 5
+        },
+        "model_load": {
+          "name": "model_load",
+          "wall_time_ms": 1945.72,
+          "avg_cpu_percent": 34.9,
+          "peak_cpu_percent": 145.5,
+          "avg_gpu_percent": 1.2,
+          "peak_gpu_percent": 4.0,
+          "memory_rss_start_mb": 499.25,
+          "memory_rss_end_mb": 559.89,
+          "memory_rss_delta_mb": 60.64,
+          "gpu_memory_start_mb": 1695.0,
+          "gpu_memory_end_mb": 1695.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 12
+        },
+        "warmup": {
+          "name": "warmup",
+          "wall_time_ms": 1001.06,
+          "avg_cpu_percent": 174.3,
+          "peak_cpu_percent": 452.7,
+          "avg_gpu_percent": 1.5,
+          "peak_gpu_percent": 2.0,
+          "memory_rss_start_mb": 737.18,
+          "memory_rss_end_mb": 677.93,
+          "memory_rss_delta_mb": -59.25,
+          "gpu_memory_start_mb": 1728.0,
+          "gpu_memory_end_mb": 1728.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 8
+        },
+        "inference": {
+          "name": "inference",
+          "wall_time_ms": 94.29,
+          "avg_cpu_percent": 39.4,
+          "peak_cpu_percent": 78.8,
+          "avg_gpu_percent": 1.0,
+          "peak_gpu_percent": 1.0,
+          "memory_rss_start_mb": 676.16,
+          "memory_rss_end_mb": 676.16,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1728.0,
+          "gpu_memory_end_mb": 1728.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "classification": {
+          "name": "classification",
+          "wall_time_ms": 14.83,
+          "avg_cpu_percent": 14.3,
+          "peak_cpu_percent": 28.7,
+          "avg_gpu_percent": 1.0,
+          "peak_gpu_percent": 1.0,
+          "memory_rss_start_mb": 677.17,
+          "memory_rss_end_mb": 677.14,
+          "memory_rss_delta_mb": -0.03,
+          "gpu_memory_start_mb": 1730.0,
+          "gpu_memory_end_mb": 1730.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "cleanup": {
+          "name": "cleanup",
+          "wall_time_ms": 35.39,
+          "avg_cpu_percent": 6.2,
+          "peak_cpu_percent": 12.3,
+          "avg_gpu_percent": 10.0,
+          "peak_gpu_percent": 10.0,
+          "memory_rss_start_mb": 677.3,
+          "memory_rss_end_mb": 677.3,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1732.0,
+          "gpu_memory_end_mb": 1732.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        }
+      },
+      "framework_init_ms": 559.85,
+      "model_load_ms": 1961.56,
+      "avg_inference_ms": 4.7,
+      "min_inference_ms": 3.41,
+      "max_inference_ms": 6.17,
+      "p95_inference_ms": 5.68,
+      "predictions": [
+        {
+          "label": "velvet",
+          "score": 44.1
+        },
+        {
+          "label": "wool, woolen, woollen",
+          "score": 22.31
+        },
+        {
+          "label": "bubble",
+          "score": 5.8
+        },
+        {
+          "label": "doormat, welcome mat",
+          "score": 5.06
+        },
+        {
+          "label": "lampshade, lamp shade",
+          "score": 3.49
+        }
+      ],
+      "error": null
+    },
+    {
+      "framework": "transformersjs",
+      "backend": "wasm",
+      "phases": {
+        "framework_init": {
+          "name": "framework_init",
+          "wall_time_ms": 33.4,
+          "avg_cpu_percent": 50.9,
+          "peak_cpu_percent": 101.7,
+          "avg_gpu_percent": 40.0,
+          "peak_gpu_percent": 40.0,
+          "memory_rss_start_mb": 406.03,
+          "memory_rss_end_mb": 406.05,
+          "memory_rss_delta_mb": 0.02,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1676.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "model_load": {
+          "name": "model_load",
+          "wall_time_ms": 2146.1,
+          "avg_cpu_percent": 60.1,
+          "peak_cpu_percent": 294.3,
+          "avg_gpu_percent": 1.8,
+          "peak_gpu_percent": 4.0,
+          "memory_rss_start_mb": 405.87,
+          "memory_rss_end_mb": 607.05,
+          "memory_rss_delta_mb": 201.18,
+          "gpu_memory_start_mb": 1676.0,
+          "gpu_memory_end_mb": 1668.0,
+          "gpu_memory_delta_mb": -8.0,
+          "sample_count": 15
+        },
+        "warmup": {
+          "name": "warmup",
+          "wall_time_ms": 223.92,
+          "avg_cpu_percent": 347.4,
+          "peak_cpu_percent": 504.9,
+          "avg_gpu_percent": 1.0,
+          "peak_gpu_percent": 1.0,
+          "memory_rss_start_mb": 720.11,
+          "memory_rss_end_mb": 738.14,
+          "memory_rss_delta_mb": 18.03,
+          "gpu_memory_start_mb": 1668.0,
+          "gpu_memory_end_mb": 1672.0,
+          "gpu_memory_delta_mb": 4.0,
+          "sample_count": 3
+        },
+        "inference": {
+          "name": "inference",
+          "wall_time_ms": 1343.87,
+          "avg_cpu_percent": 347.0,
+          "peak_cpu_percent": 451.1,
+          "avg_gpu_percent": 1.2,
+          "peak_gpu_percent": 2.0,
+          "memory_rss_start_mb": 717.71,
+          "memory_rss_end_mb": 657.59,
+          "memory_rss_delta_mb": -60.12,
+          "gpu_memory_start_mb": 1689.0,
+          "gpu_memory_end_mb": 1731.0,
+          "gpu_memory_delta_mb": 42.0,
+          "sample_count": 9
+        },
+        "classification": {
+          "name": "classification",
+          "wall_time_ms": 2.8,
+          "avg_cpu_percent": 358.1,
+          "peak_cpu_percent": 394.3,
+          "avg_gpu_percent": 2.0,
+          "peak_gpu_percent": 2.0,
+          "memory_rss_start_mb": 660.1,
+          "memory_rss_end_mb": 660.07,
+          "memory_rss_delta_mb": -0.03,
+          "gpu_memory_start_mb": 1733.0,
+          "gpu_memory_end_mb": 1733.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "cleanup": {
+          "name": "cleanup",
+          "wall_time_ms": 3.04,
+          "avg_cpu_percent": 172.0,
+          "peak_cpu_percent": 229.3,
+          "avg_gpu_percent": 0.0,
+          "peak_gpu_percent": 0.0,
+          "memory_rss_start_mb": 657.04,
+          "memory_rss_end_mb": 657.04,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1734.0,
+          "gpu_memory_end_mb": 1734.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        }
+      },
+      "framework_init_ms": 2.68,
+      "model_load_ms": 2207.02,
+      "avg_inference_ms": 44.03,
+      "min_inference_ms": 36.99,
+      "max_inference_ms": 64.14,
+      "p95_inference_ms": 59.3,
+      "predictions": [
+        {
+          "label": "wool, woolen, woollen",
+          "score": 35.27
+        },
+        {
+          "label": "doormat, welcome mat",
+          "score": 14.4
+        },
+        {
+          "label": "velvet",
+          "score": 13.99
+        },
+        {
+          "label": "stole",
+          "score": 4.41
+        },
+        {
+          "label": "poncho",
+          "score": 4.1
+        }
+      ],
+      "error": null
+    },
+    {
+      "framework": "transformersjs",
+      "backend": "webgpu",
+      "phases": {
+        "framework_init": {
+          "name": "framework_init",
+          "wall_time_ms": 0.0,
+          "avg_cpu_percent": 58.7,
+          "peak_cpu_percent": 58.7,
+          "avg_gpu_percent": 5.0,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 415.5,
+          "memory_rss_end_mb": 415.5,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1678.0,
+          "gpu_memory_end_mb": 1678.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 1
+        },
+        "model_load": {
+          "name": "model_load",
+          "wall_time_ms": 1994.0,
+          "avg_cpu_percent": 47.9,
+          "peak_cpu_percent": 171.3,
+          "avg_gpu_percent": 2.6,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 415.5,
+          "memory_rss_end_mb": 598.76,
+          "memory_rss_delta_mb": 183.26,
+          "gpu_memory_start_mb": 1678.0,
+          "gpu_memory_end_mb": 1696.0,
+          "gpu_memory_delta_mb": 18.0,
+          "sample_count": 14
+        },
+        "warmup": {
+          "name": "warmup",
+          "wall_time_ms": 690.29,
+          "avg_cpu_percent": 268.7,
+          "peak_cpu_percent": 435.8,
+          "avg_gpu_percent": 2.8,
+          "peak_gpu_percent": 4.0,
+          "memory_rss_start_mb": 666.28,
+          "memory_rss_end_mb": 692.21,
+          "memory_rss_delta_mb": 25.93,
+          "gpu_memory_start_mb": 1724.0,
+          "gpu_memory_end_mb": 1766.0,
+          "gpu_memory_delta_mb": 42.0,
+          "sample_count": 5
+        },
+        "inference": {
+          "name": "inference",
+          "wall_time_ms": 711.43,
+          "avg_cpu_percent": 111.4,
+          "peak_cpu_percent": 228.5,
+          "avg_gpu_percent": 2.8,
+          "peak_gpu_percent": 6.0,
+          "memory_rss_start_mb": 694.44,
+          "memory_rss_end_mb": 711.61,
+          "memory_rss_delta_mb": 17.17,
+          "gpu_memory_start_mb": 1768.0,
+          "gpu_memory_end_mb": 1805.0,
+          "gpu_memory_delta_mb": 37.0,
+          "sample_count": 6
+        },
+        "classification": {
+          "name": "classification",
+          "wall_time_ms": 12.13,
+          "avg_cpu_percent": 97.7,
+          "peak_cpu_percent": 195.4,
+          "avg_gpu_percent": 6.0,
+          "peak_gpu_percent": 6.0,
+          "memory_rss_start_mb": 708.47,
+          "memory_rss_end_mb": 708.47,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1809.0,
+          "gpu_memory_end_mb": 1809.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "cleanup": {
+          "name": "cleanup",
+          "wall_time_ms": 20.58,
+          "avg_cpu_percent": 9.8,
+          "peak_cpu_percent": 19.6,
+          "avg_gpu_percent": 6.0,
+          "peak_gpu_percent": 6.0,
+          "memory_rss_start_mb": 712.19,
+          "memory_rss_end_mb": 712.19,
+          "memory_rss_delta_mb": 0.0,
+          "gpu_memory_start_mb": 1810.0,
+          "gpu_memory_end_mb": 1810.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        }
+      },
+      "framework_init_ms": 3.65,
+      "model_load_ms": 2063.91,
+      "avg_inference_ms": 24.74,
+      "min_inference_ms": 21.55,
+      "max_inference_ms": 29.0,
+      "p95_inference_ms": 27.11,
+      "predictions": [
+        {
+          "label": "wool, woolen, woollen",
+          "score": 29.61
+        },
+        {
+          "label": "velvet",
+          "score": 19.76
+        },
+        {
+          "label": "doormat, welcome mat",
+          "score": 14.82
+        },
+        {
+          "label": "stole",
+          "score": 5.07
+        },
+        {
+          "label": "poncho",
+          "score": 3.98
+        }
+      ],
+      "error": null
+    },
+    {
+      "framework": "transformersjs",
+      "backend": "webnn",
+      "phases": {
+        "framework_init": {
+          "name": "framework_init",
+          "wall_time_ms": 0.65,
+          "avg_cpu_percent": 52.5,
+          "peak_cpu_percent": 105.0,
+          "avg_gpu_percent": 5.0,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 408.33,
+          "memory_rss_end_mb": 408.34,
+          "memory_rss_delta_mb": 0.01,
+          "gpu_memory_start_mb": 1677.0,
+          "gpu_memory_end_mb": 1677.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "model_load": {
+          "name": "model_load",
+          "wall_time_ms": 3092.56,
+          "avg_cpu_percent": 39.9,
+          "peak_cpu_percent": 199.7,
+          "avg_gpu_percent": 2.4,
+          "peak_gpu_percent": 5.0,
+          "memory_rss_start_mb": 409.49,
+          "memory_rss_end_mb": 636.69,
+          "memory_rss_delta_mb": 227.2,
+          "gpu_memory_start_mb": 1675.0,
+          "gpu_memory_end_mb": 1677.0,
+          "gpu_memory_delta_mb": 2.0,
+          "sample_count": 20
+        },
+        "warmup": {
+          "name": "warmup",
+          "wall_time_ms": 275.77,
+          "avg_cpu_percent": 269.6,
+          "peak_cpu_percent": 326.9,
+          "avg_gpu_percent": 3.0,
+          "peak_gpu_percent": 3.0,
+          "memory_rss_start_mb": 753.0,
+          "memory_rss_end_mb": 808.95,
+          "memory_rss_delta_mb": 55.95,
+          "gpu_memory_start_mb": 1677.0,
+          "gpu_memory_end_mb": 1677.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 3
+        },
+        "inference": {
+          "name": "inference",
+          "wall_time_ms": 1215.58,
+          "avg_cpu_percent": 354.8,
+          "peak_cpu_percent": 477.3,
+          "avg_gpu_percent": 3.6,
+          "peak_gpu_percent": 8.0,
+          "memory_rss_start_mb": 784.45,
+          "memory_rss_end_mb": 690.46,
+          "memory_rss_delta_mb": -93.99,
+          "gpu_memory_start_mb": 1688.0,
+          "gpu_memory_end_mb": 1729.0,
+          "gpu_memory_delta_mb": 41.0,
+          "sample_count": 8
+        },
+        "classification": {
+          "name": "classification",
+          "wall_time_ms": 66.94,
+          "avg_cpu_percent": 378.4,
+          "peak_cpu_percent": 409.4,
+          "avg_gpu_percent": 1.0,
+          "peak_gpu_percent": 1.0,
+          "memory_rss_start_mb": 684.59,
+          "memory_rss_end_mb": 685.5,
+          "memory_rss_delta_mb": 0.91,
+          "gpu_memory_start_mb": 1733.0,
+          "gpu_memory_end_mb": 1733.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        },
+        "cleanup": {
+          "name": "cleanup",
+          "wall_time_ms": 27.57,
+          "avg_cpu_percent": 113.6,
+          "peak_cpu_percent": 147.0,
+          "avg_gpu_percent": 1.0,
+          "peak_gpu_percent": 1.0,
+          "memory_rss_start_mb": 685.5,
+          "memory_rss_end_mb": 678.47,
+          "memory_rss_delta_mb": -7.03,
+          "gpu_memory_start_mb": 1735.0,
+          "gpu_memory_end_mb": 1735.0,
+          "gpu_memory_delta_mb": 0.0,
+          "sample_count": 2
+        }
+      },
+      "framework_init_ms": 4.48,
+      "model_load_ms": 3128.34,
+      "avg_inference_ms": 42.16,
+      "min_inference_ms": 35.88,
+      "max_inference_ms": 53.79,
+      "p95_inference_ms": 53.07,
+      "predictions": [
+        {
+          "label": "wool, woolen, woollen",
+          "score": 38.59
+        },
+        {
+          "label": "doormat, welcome mat",
+          "score": 13.2
+        },
+        {
+          "label": "velvet",
+          "score": 12.32
+        },
+        {
+          "label": "dishrag, dishcloth",
+          "score": 3.91
+        },
+        {
+          "label": "stole",
+          "score": 3.88
+        }
+      ],
+      "error": null
+    }
+  ]
+}

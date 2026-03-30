@@ -252,6 +252,118 @@ function addResultRow(m: BenchmarkMetrics) {
   resultsBody.appendChild(tr);
 }
 
+// --- Programmatic API for Playwright automation ---
+// Exposes benchmark operations so Playwright can orchestrate runs
+// and take CDP memory measurements between phases.
+(window as any).__benchmark = {
+  /** Set framework and backend dropdowns */
+  configure(frameworkId: string, backendId: string, iterations = 10, warmup = 3) {
+    frameworkSelect.value = frameworkId;
+    updateBackendOptions();
+    backendSelect.value = backendId;
+    iterationsInput.value = String(iterations);
+    warmupInput.value = String(warmup);
+  },
+
+  /** Generate noise image (same as clicking the button) */
+  generateNoise() {
+    currentImage = generateDummyImage();
+    showImagePreview(currentImage.dataUrl, 'Random noise');
+  },
+
+  /** Set expected class */
+  setExpectedClass(cls: string) {
+    expectedClassInput.value = cls;
+  },
+
+  /** Run benchmark and return full metrics (resolves when done) */
+  async run(): Promise<BenchmarkMetrics> {
+    const frameworkId = frameworkSelect.value as FrameworkId;
+    const backendId = backendSelect.value as BackendId;
+    const iterations = parseInt(iterationsInput.value, 10) || 10;
+    const warmup = parseInt(warmupInput.value, 10) || 3;
+    const expectedClass = expectedClassInput.value.trim() || null;
+
+    const benchmark = createBenchmark(frameworkId);
+
+    // Emit phase events for CDP measurement timing
+    window.dispatchEvent(new CustomEvent('benchmark:phase', { detail: 'framework-init:start' }));
+    const initStart = performance.now();
+    await benchmark.initFramework(backendId);
+    const frameworkInitMs = round(performance.now() - initStart);
+    window.dispatchEvent(new CustomEvent('benchmark:phase', { detail: 'framework-init:end' }));
+
+    window.dispatchEvent(new CustomEvent('benchmark:phase', { detail: 'model-load:start' }));
+    const loadStart = performance.now();
+    await benchmark.loadModel();
+    const modelLoadMs = round(performance.now() - loadStart);
+    window.dispatchEvent(new CustomEvent('benchmark:phase', { detail: 'model-load:end' }));
+
+    if (!currentImage) {
+      throw new Error('No image set. Call __benchmark.generateNoise() first.');
+    }
+    benchmark.setImage(currentImage);
+
+    // Warmup
+    for (let i = 0; i < warmup; i++) {
+      await benchmark.runInference();
+    }
+
+    // Inference
+    window.dispatchEvent(new CustomEvent('benchmark:phase', { detail: 'inference:start' }));
+    const inferenceTimes: number[] = [];
+    for (let i = 0; i < iterations; i++) {
+      const elapsed = await benchmark.runInference();
+      inferenceTimes.push(round(elapsed));
+    }
+    window.dispatchEvent(new CustomEvent('benchmark:phase', { detail: 'inference:end' }));
+
+    const predictions = await benchmark.classify(5);
+    const stats = computeStats(inferenceTimes);
+    const accuracy = evaluateAccuracy(predictions, expectedClass);
+
+    await benchmark.dispose();
+
+    const metrics: BenchmarkMetrics = {
+      framework: benchmark.name,
+      backend: backendId.toUpperCase(),
+      frameworkInitMs,
+      modelLoadMs,
+      inferenceTimes,
+      avgInferenceMs: stats.avg,
+      minInferenceMs: stats.min,
+      maxInferenceMs: stats.max,
+      p95InferenceMs: stats.p95,
+      memoryBeforeMB: null,
+      memoryAfterMB: null,
+      memoryDeltaMB: null,
+      predictions,
+      expectedClass,
+      ...accuracy,
+    };
+
+    allResults.push(metrics);
+    addResultRow(metrics);
+
+    return metrics;
+  },
+
+  /** Get all results collected so far */
+  getResults(): BenchmarkMetrics[] {
+    return allResults;
+  },
+
+  /** Get the current preprocessed image (for phased Playwright automation) */
+  __getCurrentImage() {
+    return currentImage;
+  },
+
+  /** Get the framework-backend matrix */
+  getMatrix() {
+    return FRAMEWORK_BACKENDS;
+  },
+};
+
 // --- Export CSV ---
 exportBtn.addEventListener('click', () => {
   const csv = [CSV_HEADER, ...allResults.map(metricsToCSVRow)].join('\n');
