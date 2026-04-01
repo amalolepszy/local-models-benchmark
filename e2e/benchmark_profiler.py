@@ -433,7 +433,12 @@ def run_benchmark_phased(framework: str, backend: str) -> BenchmarkResult:
             )
             result.framework_init_ms = round(init_ms, 2)
 
-            # --- Phase 2: Model Load ---
+            # Prefetch model (not timed — download time varies)
+            page.evaluate(
+                "async () => await window.__currentBenchmark.prefetchModel()",
+            )
+
+            # --- Phase 2: Model Load (compilation only) ---
             sampler.set_phase("model_load")
             load_ms = page.evaluate(
                 """async () => {

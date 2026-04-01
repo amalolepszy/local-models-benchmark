@@ -18,6 +18,7 @@ interface TFLiteNativeSession {
 
 export class TFLiteNativeBenchmark implements FrameworkBenchmark {
   name = 'TFLite Native';
+  frameworkBytes = 0; // Native C++ — no network payload
   supportedBackends: BackendId[] = ['cpu', 'gpu'];
   private session: TFLiteNativeSession | null = null;
   private inputData: Float32Array = new Float32Array(224 * 224 * 3);
@@ -30,6 +31,10 @@ export class TFLiteNativeBenchmark implements FrameworkBenchmark {
     }
     const delegate = backend as 'cpu' | 'gpu';
     this.session = await window.tfliteNative.createSession({ delegate });
+  }
+
+  async prefetchModel(): Promise<void> {
+    // Model is bundled on disk — no network fetch needed
   }
 
   async loadModel(): Promise<void> {

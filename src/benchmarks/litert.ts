@@ -2,28 +2,38 @@ import type { BackendId, ClassificationResult, FrameworkBenchmark } from './type
 import type { PreprocessedImage } from '../utils/image-input';
 import { IMAGENET_LABELS } from '../utils/imagenet-labels';
 import { loadLiteRt, loadAndCompile, Tensor, type CompiledModel } from '@litertjs/core';
+import { measureNewResources } from '../utils/metrics';
 
 let liteRtLoaded = false;
 
 export class LiteRTBenchmark implements FrameworkBenchmark {
   name = 'LiteRT.js';
+  frameworkBytes = 0;
   supportedBackends: BackendId[] = ['wasm', 'webgpu'];
   private model: CompiledModel | null = null;
   private inputData: Float32Array = new Float32Array(0);
   private backend: BackendId = 'wasm';
+  private readonly modelUrl = '/mobilenet_v2-1-0-224.tflite';
 
   async initFramework(backend: BackendId): Promise<void> {
+    const before = performance.getEntriesByType('resource').length;
+
     this.backend = backend;
     if (!liteRtLoaded) {
       await loadLiteRt('/litert-wasm/');
       liteRtLoaded = true;
     }
+
+    this.frameworkBytes = measureNewResources(before);
+  }
+
+  async prefetchModel(): Promise<void> {
+    await fetch(this.modelUrl);
   }
 
   async loadModel(): Promise<void> {
-    const MODEL_URL = '/mobilenet_v2-1-0-224.tflite';
     const accelerator = this.backend === 'webgpu' ? 'webgpu' : 'wasm';
-    this.model = await loadAndCompile(MODEL_URL, { accelerator });
+    this.model = await loadAndCompile(this.modelUrl, { accelerator });
 
     // Default to random input — NHWC [1, 224, 224, 3]
     this.inputData = new Float32Array(1 * 224 * 224 * 3);

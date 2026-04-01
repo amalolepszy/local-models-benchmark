@@ -2,14 +2,19 @@ import type { BackendId, ClassificationResult, FrameworkBenchmark } from './type
 import type { PreprocessedImage } from '../utils/image-input';
 import { IMAGENET_LABELS } from '../utils/imagenet-labels';
 import * as tf from '@tensorflow/tfjs';
+import { measureNewResources, getContentLength } from '../utils/metrics';
 
 export class TfjsBenchmark implements FrameworkBenchmark {
   name = 'TensorFlow.js';
   supportedBackends: BackendId[] = ['wasm', 'webgl', 'webgpu'];
+  frameworkBytes = 0;
   private model: tf.GraphModel | null = null;
   private inputTensor: tf.Tensor | null = null;
+  private modelUrl = '/mobilenet_v2_tfjs/model.json';
 
   async initFramework(backend: BackendId): Promise<void> {
+    const before = performance.getEntriesByType('resource').length;
+
     if (backend === 'wasm') {
       const wasmModule = await import('@tensorflow/tfjs-backend-wasm');
       wasmModule.setWasmPaths('/');
@@ -22,12 +27,28 @@ export class TfjsBenchmark implements FrameworkBenchmark {
       await tf.setBackend('webgpu');
     }
     await tf.ready();
+
+    this.frameworkBytes = measureNewResources(before);
+
+    // WASM loaded via WebAssembly.instantiateStreaming doesn't report decodedBodySize.
+    // Modern Chrome uses the threaded-simd variant.
+    if (backend === 'wasm') {
+      this.frameworkBytes += await getContentLength('/tfjs-backend-wasm-threaded-simd.wasm');
+    }
+  }
+
+  async prefetchModel(): Promise<void> {
+    const resp = await fetch(this.modelUrl);
+    const modelJson = await resp.json();
+    const shards: string[] = (modelJson.weightsManifest ?? [])
+      .flatMap((m: any) => m.paths ?? []);
+    const base = this.modelUrl.replace(/\/[^/]+$/, '/');
+    await Promise.all(shards.map(s => fetch(base + s)));
   }
 
   async loadModel(): Promise<void> {
-    const MODEL_URL = '/mobilenet_v2_tfjs/model.json';
-    this.model = await tf.loadGraphModel(MODEL_URL);
-    // Default to random input
+    // Model files are already in browser cache from prefetch
+    this.model = await tf.loadGraphModel(this.modelUrl);
     this.inputTensor = tf.randomUniform([1, 224, 224, 3]);
   }
 

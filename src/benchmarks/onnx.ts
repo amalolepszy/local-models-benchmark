@@ -1,16 +1,22 @@
 import type { BackendId, ClassificationResult, FrameworkBenchmark } from './types';
 import type { PreprocessedImage } from '../utils/image-input';
 import { IMAGENET_LABELS } from '../utils/imagenet-labels';
+import { measureNewResources, getContentLength } from '../utils/metrics';
 
 export class OnnxBenchmark implements FrameworkBenchmark {
   name = 'ONNX Runtime Web';
+  frameworkBytes = 0;
   supportedBackends: BackendId[] = ['wasm', 'webgl', 'webgpu', 'webnn'];
   private ort: typeof import('onnxruntime-web') | null = null;
   private session: import('onnxruntime-web').InferenceSession | null = null;
   private inputData: Float32Array = new Float32Array(0);
   private backend: BackendId = 'wasm';
+  private modelBuffer: ArrayBuffer | null = null;
+  private readonly modelUrl = '/mobilenet_v2_1.0_224.onnx';
 
   async initFramework(backend: BackendId): Promise<void> {
+    const before = performance.getEntriesByType('resource').length;
+
     this.backend = backend;
     if (backend === 'webgl') {
       this.ort = await import('onnxruntime-web/webgl');
@@ -18,11 +24,28 @@ export class OnnxBenchmark implements FrameworkBenchmark {
       this.ort = await import('onnxruntime-web');
     }
     this.ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@latest/dist/';
+
+    this.frameworkBytes = measureNewResources(before);
+
+    // WASM is loaded from CDN during InferenceSession.create(), not during init.
+    // Measure the specific variant that will be used.
+    if (backend !== 'webgl') {
+      const wasmBase = this.ort.env.wasm.wasmPaths as string;
+      // WASM backend uses base wasm; WebGPU/WebNN use .jsep variant (includes GPU interop)
+      const wasmFile = (backend === 'webgpu' || backend === 'webnn')
+        ? 'ort-wasm-simd-threaded.jsep.wasm'
+        : 'ort-wasm-simd-threaded.wasm';
+      this.frameworkBytes += await getContentLength(wasmBase + wasmFile);
+    }
+  }
+
+  async prefetchModel(): Promise<void> {
+    const resp = await fetch(this.modelUrl);
+    this.modelBuffer = await resp.arrayBuffer();
   }
 
   async loadModel(): Promise<void> {
     const ort = this.ort!;
-    const MODEL_URL = '/mobilenet_v2_1.0_224.onnx';
 
     let executionProviders: import('onnxruntime-web').InferenceSession.ExecutionProviderConfig[];
     switch (this.backend) {
@@ -39,7 +62,8 @@ export class OnnxBenchmark implements FrameworkBenchmark {
         executionProviders = ['wasm'];
     }
 
-    this.session = await ort.InferenceSession.create(MODEL_URL, { executionProviders });
+    const source = this.modelBuffer ?? this.modelUrl;
+    this.session = await ort.InferenceSession.create(source, { executionProviders });
     // Default to random input — NCHW [1, 3, 224, 224]
     this.inputData = new Float32Array(1 * 3 * 224 * 224);
     for (let i = 0; i < this.inputData.length; i++) {

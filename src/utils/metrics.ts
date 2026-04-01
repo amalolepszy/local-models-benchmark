@@ -59,6 +59,31 @@ export async function getMemoryUsageMB(): Promise<number | null> {
 }
 
 /**
+ * Sum decodedBodySize of resource entries added since the given index.
+ * Used to measure bytes loaded during a specific phase (e.g., framework init).
+ */
+export function measureNewResources(snapshotIndex: number): number {
+  const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+  let total = 0;
+  for (let i = snapshotIndex; i < entries.length; i++) {
+    total += entries[i]!.decodedBodySize || entries[i]!.transferSize || 0;
+  }
+  return total;
+}
+
+/**
+ * Measure file size via HEAD request (Content-Length header).
+ * Returns 0 if the request fails or header is missing.
+ */
+export async function getContentLength(url: string): Promise<number> {
+  try {
+    const r = await fetch(url, { method: 'HEAD' });
+    if (r.ok) return parseInt(r.headers.get('content-length') || '0', 10);
+  } catch { /* ignore */ }
+  return 0;
+}
+
+/**
  * Check if a prediction matches the expected class (case-insensitive substring match).
  */
 export function matchesExpectedClass(prediction: ClassificationResult, expected: string): boolean {
