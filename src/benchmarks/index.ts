@@ -3,6 +3,7 @@ import { TfjsBenchmark } from './tfjs';
 import { OnnxBenchmark } from './onnx';
 import { LiteRTBenchmark } from './litert';
 import { TransformersJsBenchmark } from './transformersjs';
+import { TFLiteNativeBenchmark } from './tflite-native';
 
 export function createBenchmark(id: FrameworkId): FrameworkBenchmark {
   switch (id) {
@@ -10,6 +11,7 @@ export function createBenchmark(id: FrameworkId): FrameworkBenchmark {
     case 'onnx': return new OnnxBenchmark();
     case 'litert': return new LiteRTBenchmark();
     case 'transformersjs': return new TransformersJsBenchmark();
+    case 'tflite-native': return new TFLiteNativeBenchmark();
   }
 }
 

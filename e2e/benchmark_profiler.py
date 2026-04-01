@@ -56,6 +56,8 @@ MATRIX = [
     ("transformersjs", "wasm"),
     ("transformersjs", "webgpu"),
     ("transformersjs", "webnn"),
+    ("tflite-native", "cpu"),
+    ("tflite-native", "gpu"),
 ]
 
 CHROME_ARGS = [
@@ -73,6 +75,7 @@ CHROME_ARGS = [
     "WebAssemblyLazyCompilation,"
     "WebAssemblyTiering",
     "--enable-unsafe-webgpu",
+    "--enable-blink-features=TFLiteNativeInference",
 ]
 
 
