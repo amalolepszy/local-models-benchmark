@@ -26,6 +26,8 @@ const MATRIX: [string, string][] = [
   ['transformersjs', 'wasm'],
   ['transformersjs', 'webgpu'],
   ['transformersjs', 'webnn'],
+  ['tflite-native', 'cpu'],
+  ['tflite-native', 'gpu'],
 ];
 
 interface CDPMemorySnapshot {
@@ -112,6 +114,7 @@ async function runSingleBenchmark(
       '--js-flags=--expose-gc',
       '--enable-features=WebMachineLearningNeuralNetwork,ExperimentalWebMachineLearningNeuralNetwork,WebNNDirectML,WebNNOnnxRuntime,ExperimentalWebAssemblyFeatures,ExperimentalWebAssemblySharedEverything,ExperimentalWebAssemblyStackSwitching,WebAssemblyBaseline,WebAssemblyLazyCompilation,WebAssemblyTiering',
       '--enable-unsafe-webgpu',
+      '--enable-blink-features=TFLiteNativeInference',
     ],
   });
 

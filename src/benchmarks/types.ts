@@ -1,7 +1,7 @@
 import type { PreprocessedImage } from '../utils/image-input';
 
-export type FrameworkId = 'tfjs' | 'onnx' | 'litert' | 'transformersjs';
-export type BackendId = 'wasm' | 'webgl' | 'webgpu' | 'webnn';
+export type FrameworkId = 'tfjs' | 'onnx' | 'litert' | 'transformersjs' | 'tflite-native';
+export type BackendId = 'wasm' | 'webgl' | 'webgpu' | 'webnn' | 'cpu' | 'gpu';
 
 export interface ClassificationResult {
   label: string;
@@ -40,4 +40,5 @@ export const FRAMEWORK_BACKENDS: Record<FrameworkId, BackendId[]> = {
   onnx: ['wasm', 'webgl', 'webgpu', 'webnn'],
   litert: ['wasm', 'webgpu'],
   transformersjs: ['wasm', 'webgpu', 'webnn'],
+  'tflite-native': ['cpu', 'gpu'],
 };
