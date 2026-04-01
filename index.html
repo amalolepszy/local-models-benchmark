@@ -42,6 +42,14 @@
         <input type="number" id="warmup" value="3" min="0" max="20" />
       </div>
 
+      <div class="control-group">
+        <label for="mode">Mode</label>
+        <select id="mode">
+          <option value="aggregate">Aggregate</option>
+          <option value="session">Session (per-iteration)</option>
+        </select>
+      </div>
+
       <button id="run-btn" class="primary-btn">Run Benchmark</button>
       <button id="export-btn" class="secondary-btn" disabled>Export CSV</button>
     </section>
@@ -81,7 +89,7 @@
       <p id="progress-text">Preparing...</p>
     </section>
 
-    <section class="results-section">
+    <section class="results-section" id="aggregate-results-section">
       <h2>Results</h2>
       <table id="results-table">
         <thead>
@@ -94,6 +102,7 @@
             <th>Min Inf. (ms)</th>
             <th>Max Inf. (ms)</th>
             <th>P95 Inf. (ms)</th>
+            <th>Total (ms)</th>
             <th>Mem Before (MB)</th>
             <th>Mem After (MB)</th>
             <th>Mem Delta (MB)</th>
@@ -104,7 +113,31 @@
         </thead>
         <tbody id="results-body">
           <tr class="placeholder-row">
-            <td colspan="14">No results yet. Select a framework and backend, then click "Run Benchmark".</td>
+            <td colspan="15">No results yet. Select a framework and backend, then click "Run Benchmark".</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="results-section" id="session-results-section" hidden>
+      <h2>Session Results (per-iteration)</h2>
+      <table id="session-results-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Framework</th>
+            <th>Backend</th>
+            <th>Init (ms)</th>
+            <th>Model Load (ms)</th>
+            <th>Inference (ms)</th>
+            <th>Total (ms)</th>
+            <th>Memory (MB)</th>
+            <th>Mem Delta (MB)</th>
+          </tr>
+        </thead>
+        <tbody id="session-results-body">
+          <tr class="placeholder-row">
+            <td colspan="9">No results yet. Select "Session" mode and run.</td>
           </tr>
         </tbody>
       </table>

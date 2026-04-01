@@ -291,7 +291,11 @@ def run_benchmark(framework: str, backend: str) -> BenchmarkResult:
     result = BenchmarkResult(framework=framework, backend=backend)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, args=CHROME_ARGS)
+        browser = p.chromium.launch(
+            executable_path=r"D:\chr-build\chromium\src\out\Release\chrome.exe",
+            headless=False,
+            args=CHROME_ARGS,
+        )
         context = browser.new_context()
         page = context.new_page()
         page.set_default_timeout(30000)
@@ -389,7 +393,11 @@ def run_benchmark_phased(framework: str, backend: str) -> BenchmarkResult:
     result = BenchmarkResult(framework=framework, backend=backend)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, args=CHROME_ARGS)
+        browser = p.chromium.launch(
+            executable_path=r"D:\chr-build\chromium\src\out\Release\chrome.exe",
+            headless=False,
+            args=CHROME_ARGS,
+        )
         context = browser.new_context()
         page = context.new_page()
         page.set_default_timeout(30000)
