@@ -108,6 +108,7 @@ async function runSingleBenchmark(
 ): Promise<BenchmarkResult> {
   // Fresh browser context per combo — avoids COOP context destruction
   const browser = await chromium.launch({
+    executablePath: 'D:/chr-build/chromium/src/out/Release/chrome.exe',
     headless: false,
     args: [
       '--enable-precise-memory-info',

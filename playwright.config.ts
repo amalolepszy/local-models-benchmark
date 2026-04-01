@@ -9,9 +9,11 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     browserName: 'chromium',
     launchOptions: {
+      executablePath: 'D:/chr-build/chromium/src/out/Release/chrome.exe',
       args: [
         '--enable-precise-memory-info',
         '--js-flags=--expose-gc',
+        '--enable-blink-features=TFLiteNativeInference',
       ],
     },
   },

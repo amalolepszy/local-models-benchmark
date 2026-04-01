@@ -19,6 +19,10 @@ const imagePreview = document.getElementById('image-preview') as HTMLElement;
 const predictionResults = document.getElementById('prediction-results') as HTMLElement;
 const predictionList = document.getElementById('prediction-list') as HTMLOListElement;
 const noiseBtn = document.getElementById('noise-btn') as HTMLButtonElement;
+const modeSelect = document.getElementById('mode') as HTMLSelectElement;
+const aggregateSection = document.getElementById('aggregate-results-section') as HTMLElement;
+const sessionSection = document.getElementById('session-results-section') as HTMLElement;
+const sessionResultsBody = document.getElementById('session-results-body') as HTMLTableSectionElement;
 
 // --- State ---
 const allResults: BenchmarkMetrics[] = [];
@@ -35,6 +39,14 @@ function updateBackendOptions() {
 
 frameworkSelect.addEventListener('change', updateBackendOptions);
 updateBackendOptions();
+
+// --- Mode toggle ---
+modeSelect.addEventListener('change', () => {
+  const isSession = modeSelect.value === 'session';
+  aggregateSection.hidden = isSession;
+  sessionSection.hidden = !isSession;
+});
+
 
 // --- Image upload handling ---
 imageUpload.addEventListener('change', async () => {
@@ -120,6 +132,14 @@ function await_import_metrics() {
 
 // --- Run benchmark ---
 runBtn.addEventListener('click', async () => {
+  if (modeSelect.value === 'session') {
+    await runSessionMode();
+  } else {
+    await runAggregateMode();
+  }
+});
+
+async function runAggregateMode() {
   const frameworkId = frameworkSelect.value as FrameworkId;
   const backendId = backendSelect.value as BackendId;
   const iterations = parseInt(iterationsInput.value, 10) || 10;
@@ -218,7 +238,98 @@ runBtn.addEventListener('click', async () => {
     runBtn.disabled = false;
     exportBtn.disabled = allResults.length === 0;
   }
-});
+}
+
+async function runSessionMode() {
+  const frameworkId = frameworkSelect.value as FrameworkId;
+  const backendId = backendSelect.value as BackendId;
+  const sessions = parseInt(iterationsInput.value, 10) || 10;
+
+  runBtn.disabled = true;
+
+  // Clear previous session results
+  const placeholder = sessionResultsBody.querySelector('.placeholder-row');
+  if (placeholder) placeholder.remove();
+
+  if (!currentImage) {
+    showProgress('Error', 'No image set. Upload an image or click "Generate noise" first.', 100);
+    progressText.classList.add('status-error');
+    runBtn.disabled = false;
+    return;
+  }
+
+  let prevMemory = await getMemoryUsageMB();
+
+  for (let i = 0; i < sessions; i++) {
+    const pct = ((i + 1) / sessions) * 100;
+    showProgress('Session', `${i + 1}/${sessions}`, pct);
+
+    try {
+      const benchmark = createBenchmark(frameworkId);
+
+      // Init
+      const initStart = performance.now();
+      await benchmark.initFramework(backendId);
+      const initMs = round(performance.now() - initStart);
+
+      // Prefetch (not timed)
+      await benchmark.prefetchModel();
+
+      // Model load
+      const loadStart = performance.now();
+      await benchmark.loadModel();
+      const loadMs = round(performance.now() - loadStart);
+
+      // Set image and run single inference
+      benchmark.setImage(currentImage);
+      const inferenceMs = round(await benchmark.runInference());
+
+      // Memory
+      const memNow = await getMemoryUsageMB();
+      const memDelta = prevMemory != null && memNow != null ? round(memNow - prevMemory) : null;
+
+      // Add row
+      addSessionRow(i + 1, benchmark.name, backendId.toUpperCase(), initMs, loadMs, inferenceMs, memNow, memDelta);
+
+      prevMemory = memNow;
+
+      await benchmark.dispose();
+    } catch (err: any) {
+      addSessionRow(i + 1, frameworkId, backendId.toUpperCase(), 0, 0, 0, null, null, err.message);
+    }
+  }
+
+  showProgress('Done', `${sessions} sessions complete!`, 100);
+  setTimeout(hideProgress, 2000);
+
+  runBtn.disabled = false;
+  exportBtn.disabled = false;
+}
+
+function addSessionRow(
+  num: number, framework: string, backend: string,
+  initMs: number, loadMs: number, inferenceMs: number,
+  memMB: number | null, memDeltaMB: number | null,
+  error?: string,
+) {
+  const tr = document.createElement('tr');
+  if (error) {
+    tr.innerHTML = `<td>${num}</td><td>${framework}</td><td>${backend}</td><td colspan="6" class="status-error">${error}</td>`;
+  } else {
+    tr.innerHTML = `
+      <td>${num}</td>
+      <td>${framework}</td>
+      <td>${backend}</td>
+      <td>${initMs}</td>
+      <td>${loadMs}</td>
+      <td>${inferenceMs}</td>
+      <td>${round(initMs + loadMs + inferenceMs)}</td>
+      <td>${memMB ?? 'N/A'}</td>
+      <td>${memDeltaMB ?? 'N/A'}</td>
+    `;
+  }
+  sessionResultsBody.appendChild(tr);
+}
 
 // --- Results table ---
 function addResultRow(m: BenchmarkMetrics) {
@@ -245,6 +356,7 @@ function addResultRow(m: BenchmarkMetrics) {
     <td>${m.minInferenceMs}</td>
     <td>${m.maxInferenceMs}</td>
     <td>${m.p95InferenceMs}</td>
+    <td>${round(m.frameworkInitMs + m.modelLoadMs + m.avgInferenceMs)}</td>
     <td>${m.memoryBeforeMB ?? 'N/A'}</td>
     <td>${m.memoryAfterMB ?? 'N/A'}</td>
     <td>${m.memoryDeltaMB ?? 'N/A'}</td>
