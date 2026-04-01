@@ -141,8 +141,12 @@ runBtn.addEventListener('click', async () => {
 
     showProgress('Framework Init', `Done in ${frameworkInitMs}ms`, 20);
 
-    // Phase 2: Model load
-    showProgress('Model Load', 'Downloading and compiling model...', 25);
+    // Pre-fetch model (not timed — download time varies too much)
+    showProgress('Model Prefetch', 'Downloading model...', 25);
+    await benchmark.prefetchModel();
+
+    // Phase 2: Model load (compilation/initialization only)
+    showProgress('Model Load', 'Compiling model...', 35);
     const loadStart = performance.now();
     await benchmark.loadModel();
     const modelLoadMs = round(performance.now() - loadStart);
@@ -179,7 +183,6 @@ runBtn.addEventListener('click', async () => {
     const memAfter = await getMemoryUsageMB();
     const stats = computeStats(inferenceTimes);
     const accuracy = evaluateAccuracy(predictions, expectedClass);
-
     const metrics: BenchmarkMetrics = {
       framework: benchmark.name,
       backend: backendId.toUpperCase(),
@@ -293,6 +296,9 @@ function addResultRow(m: BenchmarkMetrics) {
     const frameworkInitMs = round(performance.now() - initStart);
     window.dispatchEvent(new CustomEvent('benchmark:phase', { detail: 'framework-init:end' }));
 
+    // Pre-fetch model (not timed)
+    await benchmark.prefetchModel();
+
     window.dispatchEvent(new CustomEvent('benchmark:phase', { detail: 'model-load:start' }));
     const loadStart = performance.now();
     await benchmark.loadModel();
@@ -321,7 +327,6 @@ function addResultRow(m: BenchmarkMetrics) {
     const predictions = await benchmark.classify(5);
     const stats = computeStats(inferenceTimes);
     const accuracy = evaluateAccuracy(predictions, expectedClass);
-
     await benchmark.dispose();
 
     const metrics: BenchmarkMetrics = {

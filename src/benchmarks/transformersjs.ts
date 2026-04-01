@@ -1,15 +1,20 @@
 import type { BackendId, ClassificationResult, FrameworkBenchmark } from './types';
 import type { PreprocessedImage } from '../utils/image-input';
 import { pipeline, env, type ImageClassificationPipeline } from '@huggingface/transformers';
+import { measureNewResources } from '../utils/metrics';
 
 export class TransformersJsBenchmark implements FrameworkBenchmark {
   name = 'Transformers.js';
+  frameworkBytes = 0;
   supportedBackends: BackendId[] = ['wasm', 'webgpu', 'webnn'];
   private classifier: ImageClassificationPipeline | null = null;
   private imageUrl: string = '';
   private backend: BackendId = 'wasm';
+  private readonly modelId = 'onnx-community/mobilenet_v2_1.0_224';
 
   async initFramework(backend: BackendId): Promise<void> {
+    const before = performance.getEntriesByType('resource').length;
+
     this.backend = backend;
     env.allowLocalModels = false;
 
@@ -21,6 +26,19 @@ export class TransformersJsBenchmark implements FrameworkBenchmark {
     ctx.fillStyle = '#888888';
     ctx.fillRect(0, 0, 224, 224);
     this.imageUrl = canvas.toDataURL('image/png');
+
+    this.frameworkBytes = measureNewResources(before);
+  }
+
+  async prefetchModel(): Promise<void> {
+    // Pre-download model files into browser cache so loadModel() only measures compilation
+    // @ts-expect-error — pipeline() union type too complex for TS
+    const tempPipeline = await pipeline(
+      'image-classification',
+      this.modelId,
+      { device: 'wasm', dtype: 'fp32' }
+    );
+    await tempPipeline.dispose();
   }
 
   async loadModel(): Promise<void> {
@@ -29,11 +47,10 @@ export class TransformersJsBenchmark implements FrameworkBenchmark {
     if (this.backend === 'webnn') device = 'webnn';
 
     // @ts-expect-error — pipeline() union type too complex for TS
-    // dtype: 'fp32' forces model.onnx (full precision) on all backends,
-    // preventing Transformers.js from silently loading a quantized variant on WASM
+    // Model files already cached from prefetch — this only measures compilation
     this.classifier = await pipeline(
       'image-classification',
-      'onnx-community/mobilenet_v2_1.0_224',
+      this.modelId,
       { device, dtype: 'fp32' }
     );
   }
