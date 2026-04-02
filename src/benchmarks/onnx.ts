@@ -1,4 +1,4 @@
-import type { BackendId, ClassificationResult, FrameworkBenchmark } from './types';
+import { isWasmBackend, getWasmFlags, type BackendId, type ClassificationResult, type FrameworkBenchmark } from './types';
 import type { PreprocessedImage } from '../utils/image-input';
 import { IMAGENET_LABELS } from '../utils/imagenet-labels';
 import { measureNewResources, getContentLength } from '../utils/metrics';
@@ -6,7 +6,7 @@ import { measureNewResources, getContentLength } from '../utils/metrics';
 export class OnnxBenchmark implements FrameworkBenchmark {
   name = 'ONNX Runtime Web';
   frameworkBytes = 0;
-  supportedBackends: BackendId[] = ['wasm', 'webgl', 'webgpu', 'webnn'];
+  supportedBackends: BackendId[] = ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgl', 'webgpu', 'webnn'];
   private ort: typeof import('onnxruntime-web') | null = null;
   private session: import('onnxruntime-web').InferenceSession | null = null;
   private inputData: Float32Array = new Float32Array(0);
@@ -25,13 +25,18 @@ export class OnnxBenchmark implements FrameworkBenchmark {
     }
     this.ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@latest/dist/';
 
+    // Configure WASM variant
+    if (isWasmBackend(backend)) {
+      const { simd, threads } = getWasmFlags(backend);
+      this.ort.env.wasm.simd = simd;
+      this.ort.env.wasm.numThreads = threads ? 4 : 1;
+    }
+
     this.frameworkBytes = measureNewResources(before);
 
     // WASM is loaded from CDN during InferenceSession.create(), not during init.
-    // Measure the specific variant that will be used.
-    if (backend !== 'webgl') {
+    if (isWasmBackend(backend) || backend === 'webgpu' || backend === 'webnn') {
       const wasmBase = this.ort.env.wasm.wasmPaths as string;
-      // WASM backend uses base wasm; WebGPU/WebNN use .jsep variant (includes GPU interop)
       const wasmFile = (backend === 'webgpu' || backend === 'webnn')
         ? 'ort-wasm-simd-threaded.jsep.wasm'
         : 'ort-wasm-simd-threaded.wasm';
@@ -48,19 +53,11 @@ export class OnnxBenchmark implements FrameworkBenchmark {
     const ort = this.ort!;
 
     let executionProviders: import('onnxruntime-web').InferenceSession.ExecutionProviderConfig[];
-    switch (this.backend) {
-      case 'webgl':
-        executionProviders = ['webgl'];
-        break;
-      case 'webgpu':
-        executionProviders = ['webgpu'];
-        break;
-      case 'webnn':
-        executionProviders = ['webnn'];
-        break;
-      default:
-        executionProviders = ['wasm'];
-    }
+    if (isWasmBackend(this.backend))       executionProviders = ['wasm'];
+    else if (this.backend === 'webgl')     executionProviders = ['webgl'];
+    else if (this.backend === 'webgpu')    executionProviders = ['webgpu'];
+    else if (this.backend === 'webnn')     executionProviders = ['webnn'];
+    else                                   executionProviders = ['wasm'];
 
     const source = this.modelBuffer ?? this.modelUrl;
     this.session = await ort.InferenceSession.create(source, { executionProviders });

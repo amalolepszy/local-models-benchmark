@@ -1,4 +1,4 @@
-import type { BackendId, ClassificationResult, FrameworkBenchmark } from './types';
+import { isWasmBackend, getWasmFlags, type BackendId, type ClassificationResult, type FrameworkBenchmark } from './types';
 import type { PreprocessedImage } from '../utils/image-input';
 import { IMAGENET_LABELS } from '../utils/imagenet-labels';
 import * as tf from '@tensorflow/tfjs';
@@ -6,7 +6,7 @@ import { measureNewResources, getContentLength } from '../utils/metrics';
 
 export class TfjsBenchmark implements FrameworkBenchmark {
   name = 'TensorFlow.js';
-  supportedBackends: BackendId[] = ['wasm', 'webgl', 'webgpu'];
+  supportedBackends: BackendId[] = ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgl', 'webgpu'];
   frameworkBytes = 0;
   private model: tf.GraphModel | null = null;
   private inputTensor: tf.Tensor | null = null;
@@ -15,9 +15,12 @@ export class TfjsBenchmark implements FrameworkBenchmark {
   async initFramework(backend: BackendId): Promise<void> {
     const before = performance.getEntriesByType('resource').length;
 
-    if (backend === 'wasm') {
+    if (isWasmBackend(backend)) {
+      const { simd, threads } = getWasmFlags(backend);
       const wasmModule = await import('@tensorflow/tfjs-backend-wasm');
       wasmModule.setWasmPaths('/');
+      tf.env().set('WASM_HAS_SIMD_SUPPORT', simd);
+      tf.env().set('WASM_HAS_MULTITHREAD_SUPPORT', threads);
       await tf.setBackend('wasm');
     } else if (backend === 'webgl') {
       await import('@tensorflow/tfjs-backend-webgl');
@@ -30,10 +33,13 @@ export class TfjsBenchmark implements FrameworkBenchmark {
 
     this.frameworkBytes = measureNewResources(before);
 
-    // WASM loaded via WebAssembly.instantiateStreaming doesn't report decodedBodySize.
-    // Modern Chrome uses the threaded-simd variant.
-    if (backend === 'wasm') {
-      this.frameworkBytes += await getContentLength('/tfjs-backend-wasm-threaded-simd.wasm');
+    if (isWasmBackend(backend)) {
+      const { simd, threads } = getWasmFlags(backend);
+      let wasmFile: string;
+      if (simd && threads) wasmFile = '/tfjs-backend-wasm-threaded-simd.wasm';
+      else if (simd)       wasmFile = '/tfjs-backend-wasm-simd.wasm';
+      else                 wasmFile = '/tfjs-backend-wasm.wasm';
+      this.frameworkBytes += await getContentLength(wasmFile);
     }
   }
 
