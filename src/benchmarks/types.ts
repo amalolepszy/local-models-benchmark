@@ -1,7 +1,7 @@
 import type { PreprocessedImage } from '../utils/image-input';
 
 export type FrameworkId = 'tfjs' | 'onnx' | 'litert' | 'transformersjs' | 'tflite-native';
-export type BackendId = 'wasm' | 'webgl' | 'webgpu' | 'webnn' | 'cpu' | 'gpu';
+export type BackendId = 'wasm' | 'wasm-simd' | 'wasm-threads' | 'wasm-simd-threads' | 'webgl' | 'webgpu' | 'webnn' | 'cpu' | 'gpu';
 
 export interface ClassificationResult {
   label: string;
@@ -39,10 +39,26 @@ export interface FrameworkBenchmark {
   dispose(): Promise<void>;
 }
 
+/** Returns whether a backend ID is a WASM variant */
+export function isWasmBackend(backend: BackendId): boolean {
+  return backend === 'wasm' || backend.startsWith('wasm-');
+}
+
+/** Parse WASM variant flags from a backend ID */
+export function getWasmFlags(backend: BackendId): { simd: boolean; threads: boolean } {
+  switch (backend) {
+    case 'wasm':           return { simd: false, threads: false };
+    case 'wasm-simd':      return { simd: true,  threads: false };
+    case 'wasm-threads':   return { simd: false, threads: true };
+    case 'wasm-simd-threads': return { simd: true, threads: true };
+    default:               return { simd: true,  threads: true }; // non-wasm, doesn't matter
+  }
+}
+
 export const FRAMEWORK_BACKENDS: Record<FrameworkId, BackendId[]> = {
-  tfjs: ['wasm', 'webgl', 'webgpu'],
-  onnx: ['wasm', 'webgl', 'webgpu', 'webnn'],
-  litert: ['wasm', 'webgpu'],
-  transformersjs: ['wasm', 'webgpu', 'webnn'],
+  tfjs: ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgl', 'webgpu'],
+  onnx: ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgl', 'webgpu', 'webnn'],
+  litert: ['wasm', 'wasm-simd-threads', 'webgpu'],
+  transformersjs: ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgpu', 'webnn'],
   'tflite-native': ['cpu', 'gpu'],
 };

@@ -1,4 +1,4 @@
-import type { BackendId, ClassificationResult, FrameworkBenchmark } from './types';
+import { isWasmBackend, getWasmFlags, type BackendId, type ClassificationResult, type FrameworkBenchmark } from './types';
 import type { PreprocessedImage } from '../utils/image-input';
 import { pipeline, env, type ImageClassificationPipeline } from '@huggingface/transformers';
 import { measureNewResources } from '../utils/metrics';
@@ -6,7 +6,7 @@ import { measureNewResources } from '../utils/metrics';
 export class TransformersJsBenchmark implements FrameworkBenchmark {
   name = 'Transformers.js';
   frameworkBytes = 0;
-  supportedBackends: BackendId[] = ['wasm', 'webgpu', 'webnn'];
+  supportedBackends: BackendId[] = ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgpu', 'webnn'];
   private classifier: ImageClassificationPipeline | null = null;
   private imageUrl: string = '';
   private backend: BackendId = 'wasm';
@@ -17,6 +17,16 @@ export class TransformersJsBenchmark implements FrameworkBenchmark {
 
     this.backend = backend;
     env.allowLocalModels = false;
+
+    // Configure WASM variant for the underlying ONNX Runtime
+    if (isWasmBackend(backend)) {
+      const { simd, threads } = getWasmFlags(backend);
+      (env as any).backends = (env as any).backends ?? {};
+      (env as any).backends.onnx = (env as any).backends.onnx ?? {};
+      (env as any).backends.onnx.wasm = (env as any).backends.onnx.wasm ?? {};
+      (env as any).backends.onnx.wasm.simd = simd;
+      (env as any).backends.onnx.wasm.numThreads = threads ? 4 : 1;
+    }
 
     // Default dummy image
     const canvas = document.createElement('canvas');
@@ -44,7 +54,8 @@ export class TransformersJsBenchmark implements FrameworkBenchmark {
   async loadModel(): Promise<void> {
     let device: 'wasm' | 'webgpu' | 'webnn' = 'wasm';
     if (this.backend === 'webgpu') device = 'webgpu';
-    if (this.backend === 'webnn') device = 'webnn';
+    else if (this.backend === 'webnn') device = 'webnn';
+    else if (isWasmBackend(this.backend)) device = 'wasm';
 
     // @ts-expect-error — pipeline() union type too complex for TS
     // Model files already cached from prefetch — this only measures compilation
