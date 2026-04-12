@@ -310,3 +310,24 @@ input[type="file"] {
   background: #30363d;
   color: #8b949e;
 }
+
+/* Text input section */
+.text-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #161b22;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+}
+
+.text-controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.text-controls input[type="text"] {
+  width: 100%;
+  min-width: 300px;
+}

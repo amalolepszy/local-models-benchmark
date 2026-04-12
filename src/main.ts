@@ -1,6 +1,8 @@
-import { createBenchmark, FRAMEWORK_BACKENDS, type FrameworkId, type BackendId } from './benchmarks';
+import { createBenchmark, FRAMEWORK_BACKENDS, type FrameworkId, type BackendId, type TaskId } from './benchmarks';
+import type { BenchmarkInput } from './benchmarks/types';
 import { computeStats, getMemoryUsageMB, round, metricsToCSVRow, CSV_HEADER, evaluateAccuracy, type BenchmarkMetrics } from './utils/metrics';
 import { preprocessImage, generateDummyImage, type PreprocessedImage } from './utils/image-input';
+import { getTokenizer, type TokenizedText } from './utils/tokenizer';
 
 // --- DOM elements ---
 const frameworkSelect = document.getElementById('framework') as HTMLSelectElement;
@@ -23,10 +25,18 @@ const modeSelect = document.getElementById('mode') as HTMLSelectElement;
 const aggregateSection = document.getElementById('aggregate-results-section') as HTMLElement;
 const sessionSection = document.getElementById('session-results-section') as HTMLElement;
 const sessionResultsBody = document.getElementById('session-results-body') as HTMLTableSectionElement;
+const taskSelect = document.getElementById('task') as HTMLSelectElement;
+const imageSection = document.getElementById('image-section') as HTMLElement;
+const textSection = document.getElementById('text-section') as HTMLElement;
+const textInput = document.getElementById('text-input') as HTMLInputElement;
+const expectedSentimentSelect = document.getElementById('expected-sentiment') as HTMLSelectElement;
+const sentimentResults = document.getElementById('sentiment-results') as HTMLElement;
+const sentimentList = document.getElementById('sentiment-list') as HTMLOListElement;
 
 // --- State ---
 const allResults: BenchmarkMetrics[] = [];
 let currentImage: PreprocessedImage | null = null;
+let currentTokenized: TokenizedText | null = null;
 
 // --- Backend dropdown population ---
 function updateBackendOptions() {
@@ -46,6 +56,66 @@ modeSelect.addEventListener('change', () => {
   aggregateSection.hidden = isSession;
   sessionSection.hidden = !isSession;
 });
+
+// --- Task toggle ---
+taskSelect.addEventListener('change', () => {
+  const isText = taskSelect.value === 'text-classification';
+  imageSection.hidden = isText;
+  textSection.hidden = !isText;
+});
+
+function getSelectedTask(): TaskId {
+  return taskSelect.value as TaskId;
+}
+
+function getExpectedClass(): string | null {
+  const task = getSelectedTask();
+  if (task === 'text-classification') {
+    return expectedSentimentSelect.value || null;
+  }
+  return expectedClassInput.value.trim() || null;
+}
+
+async function prepareInput(): Promise<BenchmarkInput> {
+  const task = getSelectedTask();
+  if (task === 'text-classification') {
+    const text = textInput.value.trim();
+    if (!text) throw new Error('Enter a sentence for text classification.');
+    const tokenizer = await getTokenizer();
+    currentTokenized = tokenizer.tokenize(text);
+    return { type: 'text', text: currentTokenized, rawText: text };
+  }
+  if (!currentImage) {
+    throw new Error('No image set. Upload an image or click "Generate noise" first.');
+  }
+  return { type: 'image', image: currentImage };
+}
+
+function showSentimentPredictions(
+  predictions: import('./benchmarks/types').ClassificationResult[],
+  expected: string | null,
+) {
+  sentimentResults.hidden = false;
+  sentimentList.innerHTML = '';
+  for (const pred of predictions) {
+    const li = document.createElement('li');
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'pred-label';
+    labelSpan.textContent = pred.label;
+    const scoreSpan = document.createElement('span');
+    scoreSpan.className = 'pred-score';
+    scoreSpan.textContent = `${round(pred.score * 100)}%`;
+    li.appendChild(labelSpan);
+    li.appendChild(scoreSpan);
+    if (expected && pred.label === expected) {
+      const matchSpan = document.createElement('span');
+      matchSpan.className = 'pred-match';
+      matchSpan.textContent = 'MATCH';
+      li.appendChild(matchSpan);
+    }
+    sentimentList.appendChild(li);
+  }
+}
 
 
 // --- Image upload handling ---
@@ -142,14 +212,15 @@ runBtn.addEventListener('click', async () => {
 async function runAggregateMode() {
   const frameworkId = frameworkSelect.value as FrameworkId;
   const backendId = backendSelect.value as BackendId;
+  const task = getSelectedTask();
   const iterations = parseInt(iterationsInput.value, 10) || 10;
   const warmup = parseInt(warmupInput.value, 10) || 3;
-  const expectedClass = expectedClassInput.value.trim() || null;
+  const expectedClass = getExpectedClass();
 
   runBtn.disabled = true;
 
   try {
-    const benchmark = createBenchmark(frameworkId);
+    const benchmark = createBenchmark(frameworkId, task);
 
     // Phase 1: Framework init
     showProgress('Framework Init', `Initializing ${benchmark.name} with ${backendId.toUpperCase()}...`, 5);
@@ -173,10 +244,9 @@ async function runAggregateMode() {
 
     showProgress('Model Load', `Done in ${modelLoadMs}ms`, 50);
 
-    if (!currentImage) {
-      throw new Error('No image set. Upload an image or click "Generate noise" first.');
-    }
-    benchmark.setImage(currentImage);
+    // Prepare and set input
+    const input = await prepareInput();
+    benchmark.setInput(input);
 
     // Phase 3: Warmup
     if (warmup > 0) {
@@ -198,7 +268,12 @@ async function runAggregateMode() {
     // Phase 5: Classification
     showProgress('Classification', 'Getting predictions...', 95);
     const predictions = await benchmark.classify(5);
-    showPredictions(predictions, expectedClass);
+
+    if (task === 'text-classification') {
+      showSentimentPredictions(predictions, expectedClass);
+    } else {
+      showPredictions(predictions, expectedClass);
+    }
 
     const memAfter = await getMemoryUsageMB();
     const stats = computeStats(inferenceTimes);
@@ -243,6 +318,7 @@ async function runAggregateMode() {
 async function runSessionMode() {
   const frameworkId = frameworkSelect.value as FrameworkId;
   const backendId = backendSelect.value as BackendId;
+  const task = getSelectedTask();
   const sessions = parseInt(iterationsInput.value, 10) || 10;
 
   runBtn.disabled = true;
@@ -251,8 +327,12 @@ async function runSessionMode() {
   const placeholder = sessionResultsBody.querySelector('.placeholder-row');
   if (placeholder) placeholder.remove();
 
-  if (!currentImage) {
-    showProgress('Error', 'No image set. Upload an image or click "Generate noise" first.', 100);
+  // Prepare input once before the loop
+  let input: BenchmarkInput;
+  try {
+    input = await prepareInput();
+  } catch (err: any) {
+    showProgress('Error', err.message || String(err), 100);
     progressText.classList.add('status-error');
     runBtn.disabled = false;
     return;
@@ -265,7 +345,7 @@ async function runSessionMode() {
     showProgress('Session', `${i + 1}/${sessions}`, pct);
 
     try {
-      const benchmark = createBenchmark(frameworkId);
+      const benchmark = createBenchmark(frameworkId, task);
 
       // Init
       const initStart = performance.now();
@@ -280,8 +360,8 @@ async function runSessionMode() {
       await benchmark.loadModel();
       const loadMs = round(performance.now() - loadStart);
 
-      // Set image and run single inference
-      benchmark.setImage(currentImage);
+      // Set input and run single inference
+      benchmark.setInput(input);
       const inferenceMs = round(await benchmark.runInference());
 
       // Memory
@@ -391,15 +471,29 @@ function addResultRow(m: BenchmarkMetrics) {
     expectedClassInput.value = cls;
   },
 
+  /** Set task type */
+  setTask(task: string) {
+    taskSelect.value = task;
+    const isText = task === 'text-classification';
+    imageSection.hidden = isText;
+    textSection.hidden = !isText;
+  },
+
+  /** Set text input for text classification */
+  setTextInput(text: string) {
+    textInput.value = text;
+  },
+
   /** Run benchmark and return full metrics (resolves when done) */
   async run(): Promise<BenchmarkMetrics> {
     const frameworkId = frameworkSelect.value as FrameworkId;
     const backendId = backendSelect.value as BackendId;
+    const task = getSelectedTask();
     const iterations = parseInt(iterationsInput.value, 10) || 10;
     const warmup = parseInt(warmupInput.value, 10) || 3;
-    const expectedClass = expectedClassInput.value.trim() || null;
+    const expectedClass = getExpectedClass();
 
-    const benchmark = createBenchmark(frameworkId);
+    const benchmark = createBenchmark(frameworkId, task);
 
     // Emit phase events for CDP measurement timing
     window.dispatchEvent(new CustomEvent('benchmark:phase', { detail: 'framework-init:start' }));
@@ -417,10 +511,8 @@ function addResultRow(m: BenchmarkMetrics) {
     const modelLoadMs = round(performance.now() - loadStart);
     window.dispatchEvent(new CustomEvent('benchmark:phase', { detail: 'model-load:end' }));
 
-    if (!currentImage) {
-      throw new Error('No image set. Call __benchmark.generateNoise() first.');
-    }
-    benchmark.setImage(currentImage);
+    const input = await prepareInput();
+    benchmark.setInput(input);
 
     // Warmup
     for (let i = 0; i < warmup; i++) {

@@ -1,15 +1,17 @@
 import { isWasmBackend, getWasmFlags, type BackendId, type BenchmarkInput, type ClassificationResult, type FrameworkBenchmark } from './types';
-import { IMAGENET_LABELS } from '../utils/imagenet-labels';
+import type { TokenizedText } from '../utils/tokenizer';
 import * as tf from '@tensorflow/tfjs';
 import { measureNewResources, getContentLength } from '../utils/metrics';
 
-export class TfjsBenchmark implements FrameworkBenchmark {
+const LABELS = ['NEGATIVE', 'POSITIVE'];
+
+export class TfjsTextBenchmark implements FrameworkBenchmark {
   name = 'TensorFlow.js';
   supportedBackends: BackendId[] = ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgl', 'webgpu'];
   frameworkBytes = 0;
   private model: tf.GraphModel | null = null;
-  private inputTensor: tf.Tensor | null = null;
-  private modelUrl = '/mobilenet_v2_tfjs/model.json';
+  private tokenized: TokenizedText | null = null;
+  private modelUrl = '/distilbert-base-uncased-finetuned-sst-2-english/model_tfjs/model.json';
 
   async initFramework(backend: BackendId): Promise<void> {
     const before = performance.getEntriesByType('resource').length;
@@ -52,55 +54,81 @@ export class TfjsBenchmark implements FrameworkBenchmark {
   }
 
   async loadModel(): Promise<void> {
-    // Model files are already in browser cache from prefetch
     this.model = await tf.loadGraphModel(this.modelUrl);
-    this.inputTensor = tf.randomUniform([1, 224, 224, 3]);
+
+    // Default dummy tokenized input (sequence of zeros)
+    this.tokenized = {
+      inputIds: new Int32Array(128),
+      attentionMask: new Int32Array(128),
+      seqLength: 0,
+    };
   }
 
   setInput(input: BenchmarkInput): void {
-    if (input.type !== 'image') throw new Error('TfjsBenchmark only supports image input');
-    this.inputTensor?.dispose();
-    // TF.js MobileNet v2 from TFHub expects NHWC [0, 1]
-    this.inputTensor = tf.tensor(input.image.nhwcZeroOne, [1, 224, 224, 3]);
+    if (input.type !== 'text') throw new Error('TfjsTextBenchmark only supports text input');
+    this.tokenized = input.text;
   }
 
   async runInference(): Promise<number> {
+    const t = this.tokenized!;
+    const inputIds = tf.tensor(Array.from(t.inputIds), [1, t.inputIds.length], 'int32');
+    const attentionMask = tf.tensor(Array.from(t.attentionMask), [1, t.attentionMask.length], 'int32');
+
+    const feeds: Record<string, tf.Tensor> = {
+      input_ids: inputIds,
+      attention_mask: attentionMask,
+    };
+
     const start = performance.now();
-    const result = this.model!.predict(this.inputTensor!) as tf.Tensor;
-    await result.data();
+    const result = this.model!.predict(feeds);
+    const output = Array.isArray(result) ? result[0]! : result;
+    await (output as tf.Tensor).data();
     const elapsed = performance.now() - start;
-    result.dispose();
+
+    (output as tf.Tensor).dispose();
+    if (Array.isArray(result)) result.forEach(r => r.dispose());
+    inputIds.dispose();
+    attentionMask.dispose();
+
     return elapsed;
   }
 
-  async classify(topK = 5): Promise<ClassificationResult[]> {
-    const result = this.model!.predict(this.inputTensor!) as tf.Tensor;
-    const probabilities = await result.data();
-    result.dispose();
-    return extractTopK(probabilities as Float32Array, topK);
+  async classify(_topK = 5): Promise<ClassificationResult[]> {
+    const t = this.tokenized!;
+    const inputIds = tf.tensor(Array.from(t.inputIds), [1, t.inputIds.length], 'int32');
+    const attentionMask = tf.tensor(Array.from(t.attentionMask), [1, t.attentionMask.length], 'int32');
+
+    const feeds: Record<string, tf.Tensor> = {
+      input_ids: inputIds,
+      attention_mask: attentionMask,
+    };
+
+    const result = this.model!.predict(feeds);
+    const output = Array.isArray(result) ? result[0]! : result;
+    const logits = await (output as tf.Tensor).data();
+
+    (output as tf.Tensor).dispose();
+    if (Array.isArray(result)) result.forEach(r => r.dispose());
+    inputIds.dispose();
+    attentionMask.dispose();
+
+    return logitsToResults(logits as Float32Array);
   }
 
   async dispose(): Promise<void> {
-    this.inputTensor?.dispose();
     this.model?.dispose();
     this.model = null;
-    this.inputTensor = null;
+    this.tokenized = null;
   }
 }
 
-function extractTopK(logits: Float32Array, topK: number): ClassificationResult[] {
-  // Apply softmax
+function logitsToResults(logits: Float32Array): ClassificationResult[] {
   const maxLogit = Math.max(...logits);
-  const exps = logits.map(l => Math.exp(l - maxLogit));
+  const exps = Array.from(logits).map(l => Math.exp(l - maxLogit));
   const sumExp = exps.reduce((s, e) => s + e, 0);
   const probs = exps.map(e => e / sumExp);
 
-  const indexed = Array.from(probs).map((score, i) => ({ score, i }));
-  indexed.sort((a, b) => b.score - a.score);
-
-  return indexed.slice(0, topK).map(({ score, i }) => ({
-    label: IMAGENET_LABELS[i] ?? `class_${i}`,
-    labelIndex: i,
-    score,
-  }));
+  return probs
+    .map((score, i) => ({ label: LABELS[i] ?? `class_${i}`, labelIndex: i, score }))
+    .sort((a, b) => b.score - a.score);
 }

@@ -1,17 +1,19 @@
 import { isWasmBackend, getWasmFlags, type BackendId, type BenchmarkInput, type ClassificationResult, type FrameworkBenchmark } from './types';
-import { IMAGENET_LABELS } from '../utils/imagenet-labels';
+import type { TokenizedText } from '../utils/tokenizer';
 import { measureNewResources, getContentLength } from '../utils/metrics';
 
-export class OnnxBenchmark implements FrameworkBenchmark {
+const LABELS = ['NEGATIVE', 'POSITIVE'];
+
+export class OnnxTextBenchmark implements FrameworkBenchmark {
   name = 'ONNX Runtime Web';
   frameworkBytes = 0;
   supportedBackends: BackendId[] = ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgl', 'webgpu', 'webnn'];
   private ort: typeof import('onnxruntime-web') | null = null;
   private session: import('onnxruntime-web').InferenceSession | null = null;
-  private inputData: Float32Array = new Float32Array(0);
+  private tokenized: TokenizedText | null = null;
   private backend: BackendId = 'wasm';
   private modelBuffer: ArrayBuffer | null = null;
-  private readonly modelUrl = '/mobilenet_v2_1.0_224.onnx';
+  private readonly modelUrl = '/distilbert-base-uncased-finetuned-sst-2-english/onnx/model.onnx';
 
   async initFramework(backend: BackendId): Promise<void> {
     const before = performance.getEntriesByType('resource').length;
@@ -24,7 +26,6 @@ export class OnnxBenchmark implements FrameworkBenchmark {
     }
     this.ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@latest/dist/';
 
-    // Configure WASM variant
     if (isWasmBackend(backend)) {
       const { simd, threads } = getWasmFlags(backend);
       this.ort.env.wasm.simd = simd;
@@ -33,7 +34,6 @@ export class OnnxBenchmark implements FrameworkBenchmark {
 
     this.frameworkBytes = measureNewResources(before);
 
-    // WASM is loaded from CDN during InferenceSession.create(), not during init.
     if (isWasmBackend(backend) || backend === 'webgpu' || backend === 'webnn') {
       const wasmBase = this.ort.env.wasm.wasmPaths as string;
       const wasmFile = (backend === 'webgpu' || backend === 'webnn')
@@ -58,26 +58,35 @@ export class OnnxBenchmark implements FrameworkBenchmark {
     else if (this.backend === 'webnn')     executionProviders = ['webnn'];
     else                                   executionProviders = ['wasm'];
 
-    const source = this.modelBuffer ?? this.modelUrl;
-    this.session = await ort.InferenceSession.create(source, { executionProviders });
-    // Default to random input — NCHW [1, 3, 224, 224]
-    this.inputData = new Float32Array(1 * 3 * 224 * 224);
-    for (let i = 0; i < this.inputData.length; i++) {
-      this.inputData[i] = Math.random();
-    }
+    const source: string | Uint8Array = this.modelBuffer ? new Uint8Array(this.modelBuffer) : this.modelUrl;
+    this.session = await ort.InferenceSession.create(source as string, { executionProviders });
+
+    // Default dummy tokenized input
+    this.tokenized = {
+      inputIds: new Int32Array(128),
+      attentionMask: new Int32Array(128),
+      seqLength: 0,
+    };
   }
 
   setInput(input: BenchmarkInput): void {
-    if (input.type !== 'image') throw new Error('OnnxBenchmark only supports image input');
-    // ONNX model (google/mobilenet_v2) expects NCHW [-1, 1]
-    this.inputData = input.image.nchwNegOneOne;
+    if (input.type !== 'text') throw new Error('OnnxTextBenchmark only supports text input');
+    this.tokenized = input.text;
   }
 
   async runInference(): Promise<number> {
     const ort = this.ort!;
-    const tensor = new ort.Tensor('float32', this.inputData, [1, 3, 224, 224]);
-    const inputNames = this.session!.inputNames;
-    const feeds: Record<string, import('onnxruntime-web').Tensor> = { [inputNames[0]!]: tensor };
+    const t = this.tokenized!;
+    const len = t.inputIds.length;
+
+    // ONNX DistilBERT expects int64 tensors
+    const inputIds = new ort.Tensor('int64', BigInt64Array.from(t.inputIds, v => BigInt(v)), [1, len]);
+    const attentionMask = new ort.Tensor('int64', BigInt64Array.from(t.attentionMask, v => BigInt(v)), [1, len]);
+
+    const feeds: Record<string, import('onnxruntime-web').Tensor> = {
+      input_ids: inputIds,
+      attention_mask: attentionMask,
+    };
 
     const start = performance.now();
     const results = await this.session!.run(feeds);
@@ -87,38 +96,40 @@ export class OnnxBenchmark implements FrameworkBenchmark {
     return elapsed;
   }
 
-  async classify(topK = 5): Promise<ClassificationResult[]> {
+  async classify(_topK = 5): Promise<ClassificationResult[]> {
     const ort = this.ort!;
-    const tensor = new ort.Tensor('float32', this.inputData, [1, 3, 224, 224]);
-    const inputNames = this.session!.inputNames;
-    const feeds: Record<string, import('onnxruntime-web').Tensor> = { [inputNames[0]!]: tensor };
+    const t = this.tokenized!;
+    const len = t.inputIds.length;
+
+    const inputIds = new ort.Tensor('int64', BigInt64Array.from(t.inputIds, v => BigInt(v)), [1, len]);
+    const attentionMask = new ort.Tensor('int64', BigInt64Array.from(t.attentionMask, v => BigInt(v)), [1, len]);
+
+    const feeds: Record<string, import('onnxruntime-web').Tensor> = {
+      input_ids: inputIds,
+      attention_mask: attentionMask,
+    };
 
     const results = await this.session!.run(feeds);
     const output = Object.values(results)[0]!;
-    const logits = output.data as Float32Array;
-    return extractTopK(logits, topK);
+    const logits = new Float32Array(output.data as Float32Array);
+    return logitsToResults(logits);
   }
 
   async dispose(): Promise<void> {
     await this.session?.release();
     this.session = null;
-    this.inputData = new Float32Array(0);
+    this.tokenized = null;
     this.ort = null;
   }
 }
 
-function extractTopK(logits: Float32Array, topK: number): ClassificationResult[] {
+function logitsToResults(logits: Float32Array): ClassificationResult[] {
   const maxLogit = Math.max(...logits);
   const exps = Array.from(logits).map(l => Math.exp(l - maxLogit));
   const sumExp = exps.reduce((s, e) => s + e, 0);
   const probs = exps.map(e => e / sumExp);
 
-  const indexed = probs.map((score, i) => ({ score, i }));
-  indexed.sort((a, b) => b.score - a.score);
-
-  return indexed.slice(0, topK).map(({ score, i }) => ({
-    label: IMAGENET_LABELS[i] ?? `class_${i}`,
-    labelIndex: i,
-    score,
-  }));
+  return probs
+    .map((score, i) => ({ label: LABELS[i] ?? `class_${i}`, labelIndex: i, score }))
+    .sort((a, b) => b.score - a.score);
 }

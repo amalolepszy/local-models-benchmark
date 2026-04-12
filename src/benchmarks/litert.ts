@@ -1,5 +1,4 @@
-import type { BackendId, ClassificationResult, FrameworkBenchmark } from './types';
-import type { PreprocessedImage } from '../utils/image-input';
+import type { BackendId, BenchmarkInput, ClassificationResult, FrameworkBenchmark } from './types';
 import { IMAGENET_LABELS } from '../utils/imagenet-labels';
 import { loadLiteRt, loadAndCompile, Tensor, type CompiledModel } from '@litertjs/core';
 import { measureNewResources } from '../utils/metrics';
@@ -42,9 +41,10 @@ export class LiteRTBenchmark implements FrameworkBenchmark {
     }
   }
 
-  setImage(image: PreprocessedImage): void {
+  setInput(input: BenchmarkInput): void {
+    if (input.type !== 'image') throw new Error('LiteRTBenchmark only supports image input');
     // TFLite MobileNet v2 expects NHWC [-1, 1]
-    this.inputData = image.nhwcNegOneOne;
+    this.inputData = input.image.nhwcNegOneOne;
   }
 
   async runInference(): Promise<number> {
