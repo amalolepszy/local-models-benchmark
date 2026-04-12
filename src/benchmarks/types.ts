@@ -1,5 +1,7 @@
 import type { PreprocessedImage } from '../utils/image-input';
+import type { TokenizedText } from '../utils/tokenizer';
 
+export type TaskId = 'image-classification' | 'text-classification';
 export type FrameworkId = 'tfjs' | 'onnx' | 'litert' | 'transformersjs' | 'tflite-native';
 export type BackendId = 'wasm' | 'wasm-simd' | 'wasm-threads' | 'wasm-simd-threads' | 'webgl' | 'webgpu' | 'webnn' | 'cpu' | 'gpu';
 
@@ -8,6 +10,10 @@ export interface ClassificationResult {
   labelIndex: number;
   score: number;
 }
+
+export type BenchmarkInput =
+  | { type: 'image'; image: PreprocessedImage }
+  | { type: 'text'; text: TokenizedText; rawText: string };
 
 export interface ProgressCallback {
   (phase: string, detail: string): void;
@@ -29,8 +35,8 @@ export interface FrameworkBenchmark {
   prefetchModel(): Promise<void>;
   /** Load / compile the model (from prefetched data) */
   loadModel(): Promise<void>;
-  /** Set preprocessed image input for inference */
-  setImage(image: PreprocessedImage): void;
+  /** Set input data for inference (image or tokenized text) */
+  setInput(input: BenchmarkInput): void;
   /** Run a single inference and return the elapsed time in ms */
   runInference(): Promise<number>;
   /** Run inference and return top-K classification results */

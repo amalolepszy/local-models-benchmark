@@ -15,6 +15,14 @@
 
     <section class="controls">
       <div class="control-group">
+        <label for="task">Task</label>
+        <select id="task">
+          <option value="image-classification">Image Classification</option>
+          <option value="text-classification">Text Classification (Sentiment)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
         <label for="framework">Framework</label>
         <select id="framework">
           <option value="tfjs">TensorFlow.js</option>
@@ -54,7 +62,7 @@
       <button id="export-btn" class="secondary-btn" disabled>Export CSV</button>
     </section>
 
-    <section class="image-section">
+    <section class="image-section" id="image-section">
       <h2>Input Image</h2>
       <div class="image-controls">
         <div class="control-group">
@@ -78,6 +86,28 @@
           <h3>Classification Results</h3>
           <ol id="prediction-list"></ol>
         </div>
+      </div>
+    </section>
+
+    <section class="text-section" id="text-section" hidden>
+      <h2>Input Text</h2>
+      <div class="text-controls">
+        <div class="control-group" style="flex: 1;">
+          <label for="text-input">Sentence</label>
+          <input type="text" id="text-input" value="This movie was absolutely wonderful and I loved every moment of it." placeholder="Enter a sentence for sentiment analysis" />
+        </div>
+        <div class="control-group">
+          <label for="expected-sentiment">Expected sentiment</label>
+          <select id="expected-sentiment">
+            <option value="">-- none --</option>
+            <option value="POSITIVE">POSITIVE</option>
+            <option value="NEGATIVE">NEGATIVE</option>
+          </select>
+        </div>
+      </div>
+      <div id="sentiment-results" class="prediction-results" hidden>
+        <h3>Sentiment Results</h3>
+        <ol id="sentiment-list"></ol>
       </div>
     </section>
 
