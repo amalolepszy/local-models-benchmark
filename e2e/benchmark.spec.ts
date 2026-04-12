@@ -13,7 +13,11 @@ import { join } from 'path';
  * and JSHeapUsedSize before and after each benchmark run.
  */
 
-const MATRIX: [string, string][] = [
+// Set via env: BENCHMARK_TASK=text npx playwright test e2e/benchmark.spec.ts
+const TASK = process.env.BENCHMARK_TASK === 'text' ? 'text-classification' : 'image-classification';
+const TEXT_INPUT = 'This movie was absolutely wonderful and I loved every moment of it.';
+
+const IMAGE_MATRIX: [string, string][] = [
   ['tfjs', 'wasm'],
   ['tfjs', 'wasm-simd'],
   ['tfjs', 'wasm-threads'],
@@ -39,6 +43,34 @@ const MATRIX: [string, string][] = [
   ['tflite-native', 'cpu'],
   ['tflite-native', 'gpu'],
 ];
+
+const TEXT_MATRIX: [string, string][] = [
+  ['tfjs', 'wasm'],
+  ['tfjs', 'wasm-simd'],
+  ['tfjs', 'wasm-threads'],
+  ['tfjs', 'wasm-simd-threads'],
+  ['tfjs', 'webgl'],
+  ['tfjs', 'webgpu'],
+  ['onnx', 'wasm'],
+  ['onnx', 'wasm-simd'],
+  ['onnx', 'wasm-threads'],
+  ['onnx', 'wasm-simd-threads'],
+  ['onnx', 'webgl'],
+  ['onnx', 'webgpu'],
+  ['onnx', 'webnn'],
+  ['litert', 'wasm'],
+  ['litert', 'wasm-simd-threads'],
+  ['transformersjs', 'wasm'],
+  ['transformersjs', 'wasm-simd'],
+  ['transformersjs', 'wasm-threads'],
+  ['transformersjs', 'wasm-simd-threads'],
+  ['transformersjs', 'webgpu'],
+  ['transformersjs', 'webnn'],
+  ['tflite-native', 'cpu'],
+  ['tflite-native', 'gpu'],
+];
+
+const MATRIX = TASK === 'image-classification' ? IMAGE_MATRIX : TEXT_MATRIX;
 
 interface CDPMemorySnapshot {
   processMemoryMB: number;
@@ -143,14 +175,19 @@ async function runSingleBenchmark(
       { timeout: 15000 },
     );
 
-    // Generate noise and configure
+    // Configure task and input
     await page.evaluate(
-      ([fw, be]) => {
+      async ([fw, be, task, textInput]) => {
         const b = (window as any).__benchmark;
-        b.generateNoise();
+        b.setTask(task);
         b.configure(fw, be, 10, 3);
+        if (task === 'image-classification') {
+          await b.loadImage('/rocky.jpg');
+        } else {
+          b.setTextInput(textInput);
+        }
       },
-      [framework, backend],
+      [framework, backend, TASK, TEXT_INPUT],
     );
 
     // Measure memory before
@@ -226,7 +263,11 @@ test('run all benchmarks with CDP memory profiling', async () => {
   }
 
   // Save JSON
-  const outputPath = join(process.cwd(), 'benchmark_results.json');
+  const taskSuffix = TASK === 'text-classification' ? 'text' : 'image';
+  const outputDir = join(process.cwd(), 'benchmark_results');
+  const { mkdirSync } = await import('fs');
+  mkdirSync(outputDir, { recursive: true });
+  const outputPath = join(outputDir, `benchmark_results_${taskSuffix}.json`);
   const report = {
     timestamp: new Date().toISOString(),
     results,
@@ -236,7 +277,7 @@ test('run all benchmarks with CDP memory profiling', async () => {
   console.log(`\nResults saved to ${outputPath}`);
 
   // Save CSV
-  const csvPath = join(process.cwd(), 'benchmark_results.csv');
+  const csvPath = join(outputDir, `benchmark_results_${taskSuffix}.csv`);
   const csvHeader = [
     'Framework', 'Backend',
     'FrameworkInit(ms)', 'ModelLoad(ms)',
