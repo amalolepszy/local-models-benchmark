@@ -5,17 +5,18 @@ import { measureNewResources } from '../utils/metrics';
 export class TransformersJsTextBenchmark implements FrameworkBenchmark {
   name = 'Transformers.js';
   frameworkBytes = 0;
-  supportedBackends: BackendId[] = ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgpu', 'webnn'];
+  supportedBackends: BackendId[] = ['wasm-simd-threads', 'webgpu', 'webnn'];
   private classifier: TextClassificationPipeline | null = null;
   private rawText: string = 'This is a test.';
   private backend: BackendId = 'wasm';
-  private readonly modelId = 'distilbert-base-uncased-finetuned-sst-2-english';
+  private readonly modelId = '/distilbert-base-uncased-finetuned-sst-2-english/transformersjs';
 
   async initFramework(backend: BackendId): Promise<void> {
     const before = performance.getEntriesByType('resource').length;
 
     this.backend = backend;
-    env.allowLocalModels = false;
+    env.allowLocalModels = true;
+    env.allowRemoteModels = false;
 
     if (isWasmBackend(backend)) {
       const { simd, threads } = getWasmFlags(backend);

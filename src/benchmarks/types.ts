@@ -62,9 +62,9 @@ export function getWasmFlags(backend: BackendId): { simd: boolean; threads: bool
 }
 
 export const FRAMEWORK_BACKENDS: Record<FrameworkId, BackendId[]> = {
-  tfjs: ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgl', 'webgpu'],
-  onnx: ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgl', 'webgpu', 'webnn'],
-  litert: ['wasm', 'wasm-simd-threads', 'webgpu'],
-  transformersjs: ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgpu', 'webnn'],
+  tfjs: ['wasm-simd-threads', 'webgl', 'webgpu'],
+  onnx: ['wasm-simd-threads', 'webgl', 'webgpu', 'webnn'],
+  litert: ['wasm-simd-threads', 'webgpu'],
+  transformersjs: ['wasm-simd-threads', 'webgpu', 'webnn'],
   'tflite-native': ['cpu', 'gpu'],
 };

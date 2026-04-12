@@ -7,7 +7,7 @@ const LABELS = ['NEGATIVE', 'POSITIVE'];
 export class OnnxTextBenchmark implements FrameworkBenchmark {
   name = 'ONNX Runtime Web';
   frameworkBytes = 0;
-  supportedBackends: BackendId[] = ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgl', 'webgpu', 'webnn'];
+  supportedBackends: BackendId[] = ['wasm-simd-threads', 'webgl', 'webgpu', 'webnn'];
   private ort: typeof import('onnxruntime-web') | null = null;
   private session: import('onnxruntime-web').InferenceSession | null = null;
   private tokenized: TokenizedText | null = null;

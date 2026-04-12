@@ -8,7 +8,7 @@ let liteRtLoaded = false;
 export class LiteRTBenchmark implements FrameworkBenchmark {
   name = 'LiteRT.js';
   frameworkBytes = 0;
-  supportedBackends: BackendId[] = ['wasm', 'wasm-simd-threads', 'webgpu'];
+  supportedBackends: BackendId[] = ['wasm-simd-threads', 'webgpu'];
   private model: CompiledModel | null = null;
   private inputData: Float32Array = new Float32Array(0);
   private backend: BackendId = 'wasm';

@@ -5,7 +5,7 @@ import { measureNewResources, getContentLength } from '../utils/metrics';
 
 export class TfjsBenchmark implements FrameworkBenchmark {
   name = 'TensorFlow.js';
-  supportedBackends: BackendId[] = ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgl', 'webgpu'];
+  supportedBackends: BackendId[] = ['wasm-simd-threads', 'webgl', 'webgpu'];
   frameworkBytes = 0;
   private model: tf.GraphModel | null = null;
   private inputTensor: tf.Tensor | null = null;
