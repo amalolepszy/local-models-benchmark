@@ -10,7 +10,7 @@ let liteRtLoaded = false;
 export class LiteRTTextBenchmark implements FrameworkBenchmark {
   name = 'LiteRT.js';
   frameworkBytes = 0;
-  supportedBackends: BackendId[] = ['wasm', 'wasm-simd-threads'];
+  supportedBackends: BackendId[] = ['wasm-simd-threads'];
   private model: CompiledModel | null = null;
   private tokenized: TokenizedText | null = null;
   private backend: BackendId = 'wasm';

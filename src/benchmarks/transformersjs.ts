@@ -5,7 +5,7 @@ import { measureNewResources } from '../utils/metrics';
 export class TransformersJsBenchmark implements FrameworkBenchmark {
   name = 'Transformers.js';
   frameworkBytes = 0;
-  supportedBackends: BackendId[] = ['wasm', 'wasm-simd', 'wasm-threads', 'wasm-simd-threads', 'webgpu', 'webnn'];
+  supportedBackends: BackendId[] = ['wasm-simd-threads', 'webgpu', 'webnn'];
   private classifier: ImageClassificationPipeline | null = null;
   private imageUrl: string = '';
   private backend: BackendId = 'wasm';
