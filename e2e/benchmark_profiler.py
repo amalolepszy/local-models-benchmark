@@ -43,7 +43,21 @@ SAMPLE_INTERVAL_MS = 50
 ITERATIONS = 30
 WARMUP = 5
 
-MATRIX = [
+import argparse
+
+_parser = argparse.ArgumentParser(description="Benchmark profiler")
+_parser.add_argument(
+    "--task",
+    choices=["image", "text"],
+    default="image",
+    help="Task to benchmark: image (classification) or text (sentiment)",
+)
+_args = _parser.parse_args()
+
+TASK = "text-classification" if _args.task == "text" else "image-classification"
+TEXT_INPUT = "This movie was absolutely wonderful and I loved every moment of it."
+
+IMAGE_MATRIX = [
     ("tfjs", "wasm"),
     ("tfjs", "wasm-simd"),
     ("tfjs", "wasm-threads"),
@@ -69,6 +83,34 @@ MATRIX = [
     ("tflite-native", "cpu"),
     ("tflite-native", "gpu"),
 ]
+
+TEXT_MATRIX = [
+    ("tfjs", "wasm"),
+    ("tfjs", "wasm-simd"),
+    ("tfjs", "wasm-threads"),
+    ("tfjs", "wasm-simd-threads"),
+    ("tfjs", "webgl"),
+    ("tfjs", "webgpu"),
+    ("onnx", "wasm"),
+    ("onnx", "wasm-simd"),
+    ("onnx", "wasm-threads"),
+    ("onnx", "wasm-simd-threads"),
+    ("onnx", "webgl"),
+    ("onnx", "webgpu"),
+    ("onnx", "webnn"),
+    ("litert", "wasm"),
+    ("litert", "wasm-simd-threads"),
+    ("transformersjs", "wasm"),
+    ("transformersjs", "wasm-simd"),
+    ("transformersjs", "wasm-threads"),
+    ("transformersjs", "wasm-simd-threads"),
+    ("transformersjs", "webgpu"),
+    ("transformersjs", "webnn"),
+    ("tflite-native", "cpu"),
+    ("tflite-native", "gpu"),
+]
+
+MATRIX = IMAGE_MATRIX if TASK == "image-classification" else TEXT_MATRIX
 
 CHROME_ARGS = [
     "--enable-precise-memory-info",
@@ -125,6 +167,7 @@ class PhaseMetrics:
 class BenchmarkResult:
     framework: str
     backend: str
+    task: str = ""
     phases: dict = field(default_factory=dict)
     framework_init_ms: float = 0
     model_load_ms: float = 0
@@ -298,7 +341,7 @@ def get_browser_pids(browser) -> list[int]:
 # ---------------------------------------------------------------------------
 
 def run_benchmark(framework: str, backend: str) -> BenchmarkResult:
-    result = BenchmarkResult(framework=framework, backend=backend)
+    result = BenchmarkResult(framework=framework, backend=backend, task=TASK)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -323,14 +366,19 @@ def run_benchmark(framework: str, backend: str) -> BenchmarkResult:
                 timeout=15000,
             )
 
-            # Generate noise and configure
+            # Configure task and input
             page.evaluate(
-                """([fw, be, iter, warm]) => {
+                """async ([fw, be, iter, warm, task, textInput]) => {
                     const b = window.__benchmark;
-                    b.generateNoise();
+                    b.setTask(task);
                     b.configure(fw, be, iter, warm);
+                    if (task === 'image-classification') {
+                        await b.loadImage('/rocky.jpg');
+                    } else {
+                        b.setTextInput(textInput);
+                    }
                 }""",
-                [framework, backend, ITERATIONS, WARMUP],
+                [framework, backend, ITERATIONS, WARMUP, TASK, TEXT_INPUT],
             )
 
             # Start sampling
@@ -338,19 +386,6 @@ def run_benchmark(framework: str, backend: str) -> BenchmarkResult:
 
             # Phase 1: Framework init
             sampler.set_phase("framework_init")
-            page.evaluate(
-                """() => {
-                    window.__benchPhaseResult = null;
-                    const b = window.__benchmark;
-                    const fw = document.getElementById('framework').value;
-                    const be = document.getElementById('backend').value;
-                    const { createBenchmark } = window.__benchmarkInternals || {};
-
-                    // We run via the full run() which handles all phases
-                    // but we need phase-level timing, so we rely on the
-                    // benchmark's own timing plus our external sampling.
-                }"""
-            )
 
             # Run the full benchmark — phases are timed internally
             metrics = page.evaluate("() => window.__benchmark.run()")
@@ -400,7 +435,7 @@ def run_benchmark_phased(framework: str, backend: str) -> BenchmarkResult:
     Runs the benchmark with separate phase sampling by calling each
     phase individually via page.evaluate.
     """
-    result = BenchmarkResult(framework=framework, backend=backend)
+    result = BenchmarkResult(framework=framework, backend=backend, task=TASK)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -424,14 +459,19 @@ def run_benchmark_phased(framework: str, backend: str) -> BenchmarkResult:
                 timeout=15000,
             )
 
-            # Configure
+            # Configure task and input
             page.evaluate(
-                """([fw, be, iter, warm]) => {
+                """async ([fw, be, iter, warm, task, textInput]) => {
                     const b = window.__benchmark;
-                    b.generateNoise();
+                    b.setTask(task);
                     b.configure(fw, be, iter, warm);
+                    if (task === 'image-classification') {
+                        await b.loadImage('/rocky.jpg');
+                    } else {
+                        b.setTextInput(textInput);
+                    }
                 }""",
-                [framework, backend, ITERATIONS, WARMUP],
+                [framework, backend, ITERATIONS, WARMUP, TASK, TEXT_INPUT],
             )
 
             sampler.start()
@@ -439,15 +479,16 @@ def run_benchmark_phased(framework: str, backend: str) -> BenchmarkResult:
             # --- Phase 1: Framework Init ---
             sampler.set_phase("framework_init")
             init_ms = page.evaluate(
-                """async () => {
+                """async ([task]) => {
                     const { createBenchmark } = await import('/src/benchmarks/index.ts');
                     const fw = document.getElementById('framework').value;
                     const be = document.getElementById('backend').value;
-                    window.__currentBenchmark = createBenchmark(fw);
+                    window.__currentBenchmark = createBenchmark(fw, task);
                     const start = performance.now();
                     await window.__currentBenchmark.initFramework(be);
                     return performance.now() - start;
                 }""",
+                [TASK],
             )
             result.framework_init_ms = round(init_ms, 2)
 
@@ -467,12 +508,21 @@ def run_benchmark_phased(framework: str, backend: str) -> BenchmarkResult:
             )
             result.model_load_ms = round(load_ms, 2)
 
-            # Set image
+            # Set input (image or text)
             page.evaluate(
-                """() => {
-                    const img = window.__benchmark.__getCurrentImage();
-                    window.__currentBenchmark.setImage(img);
-                }"""
+                """async ([task]) => {
+                    if (task === 'image-classification') {
+                        const img = window.__benchmark.__getCurrentImage();
+                        window.__currentBenchmark.setInput({ type: 'image', image: img });
+                    } else {
+                        const { getTokenizer } = await import('/src/utils/tokenizer.ts');
+                        const tokenizer = await getTokenizer();
+                        const text = document.getElementById('text-input').value;
+                        const tokenized = tokenizer.tokenize(text);
+                        window.__currentBenchmark.setInput({ type: 'text', text: tokenized, rawText: text });
+                    }
+                }""",
+                [TASK],
             )
 
             # --- Phase 3: Warmup ---
@@ -583,12 +633,15 @@ def main():
             ))
 
     # --- Save results ---
-    output_dir = Path(__file__).parent.parent
+    output_dir = Path(__file__).parent.parent / "benchmark_results"
+    output_dir.mkdir(exist_ok=True)
+    task_suffix = "text" if TASK == "text-classification" else "image"
 
     # JSON
-    json_path = output_dir / "benchmark_results.json"
+    json_path = output_dir / f"benchmark_results_{task_suffix}.json"
     report = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "task": TASK,
         "gpu_available": HAS_GPU_MONITOR,
         "results": [asdict(r) for r in results],
     }
@@ -596,11 +649,11 @@ def main():
     print(f"\nJSON saved to {json_path}")
 
     # CSV
-    csv_path = output_dir / "benchmark_results.csv"
+    csv_path = output_dir / f"benchmark_results_{task_suffix}.csv"
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([
-            "Framework", "Backend",
+            "Task", "Framework", "Backend",
             "FrameworkInit(ms)", "ModelLoad(ms)",
             "AvgInference(ms)", "MinInference(ms)", "MaxInference(ms)", "P95Inference(ms)",
             # Framework init phase
@@ -626,7 +679,7 @@ def main():
             top_pred = r.predictions[0] if r.predictions else {}
 
             writer.writerow([
-                r.framework, r.backend,
+                r.task, r.framework, r.backend,
                 r.framework_init_ms, r.model_load_ms,
                 r.avg_inference_ms, r.min_inference_ms, r.max_inference_ms, r.p95_inference_ms,
                 init_p.get("avg_cpu_percent", ""),

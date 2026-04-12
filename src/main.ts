@@ -466,6 +466,12 @@ function addResultRow(m: BenchmarkMetrics) {
     showImagePreview(currentImage.dataUrl, 'Random noise');
   },
 
+  /** Load image from URL and preprocess it */
+  async loadImage(url: string) {
+    currentImage = await preprocessImage(url);
+    showImagePreview(currentImage.dataUrl, 'Loaded image');
+  },
+
   /** Set expected class */
   setExpectedClass(cls: string) {
     expectedClassInput.value = cls;
