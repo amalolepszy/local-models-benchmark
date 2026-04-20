@@ -3,6 +3,8 @@ import { IMAGENET_LABELS } from '../utils/imagenet-labels';
 import * as tf from '@tensorflow/tfjs';
 import { measureNewResources, getContentLength } from '../utils/metrics';
 
+let cachedModel: tf.GraphModel | null = null;
+
 export class TfjsBenchmark implements FrameworkBenchmark {
   name = 'TensorFlow.js';
   supportedBackends: BackendId[] = ['wasm-simd-threads', 'webgl', 'webgpu'];
@@ -52,8 +54,12 @@ export class TfjsBenchmark implements FrameworkBenchmark {
   }
 
   async loadModel(): Promise<void> {
-    // Model files are already in browser cache from prefetch
-    this.model = await tf.loadGraphModel(this.modelUrl);
+    if (cachedModel) {
+      this.model = cachedModel;
+    } else {
+      this.model = await tf.loadGraphModel(this.modelUrl);
+      cachedModel = this.model;
+    }
     this.inputTensor = tf.randomUniform([1, 224, 224, 3]);
   }
 
@@ -82,7 +88,7 @@ export class TfjsBenchmark implements FrameworkBenchmark {
 
   async dispose(): Promise<void> {
     this.inputTensor?.dispose();
-    this.model?.dispose();
+    // Don't dispose the model — it's cached for reuse across sessions
     this.model = null;
     this.inputTensor = null;
   }

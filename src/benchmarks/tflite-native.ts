@@ -16,6 +16,8 @@ interface TFLiteNativeSession {
   dispose(): void;
 }
 
+let cachedSession: TFLiteNativeSession | null = null;
+
 export class TFLiteNativeBenchmark implements FrameworkBenchmark {
   name = 'TFLite Native';
   frameworkBytes = 0; // Native C++ — no network payload
@@ -38,7 +40,12 @@ export class TFLiteNativeBenchmark implements FrameworkBenchmark {
   }
 
   async loadModel(): Promise<void> {
-    await this.session!.loadModel('mobilenet_v2-1-0-224');
+    if (cachedSession) {
+      this.session = cachedSession;
+    } else {
+      await this.session!.loadModel('mobilenet_v2-1-0-224');
+      cachedSession = this.session;
+    }
   }
 
   setInput(input: BenchmarkInput): void {
@@ -63,7 +70,7 @@ export class TFLiteNativeBenchmark implements FrameworkBenchmark {
   }
 
   async dispose(): Promise<void> {
-    this.session?.dispose();
+    // Don't dispose the session — it's cached for reuse across sessions
     this.session = null;
     this.inputData = new Float32Array(0);
   }

@@ -2,6 +2,8 @@ import { isWasmBackend, getWasmFlags, type BackendId, type BenchmarkInput, type 
 import { pipeline, env, type TextClassificationPipeline } from '@huggingface/transformers';
 import { measureNewResources } from '../utils/metrics';
 
+let cachedClassifier: TextClassificationPipeline | null = null;
+
 export class TransformersJsTextBenchmark implements FrameworkBenchmark {
   name = 'Transformers.js';
   frameworkBytes = 0;
@@ -41,16 +43,21 @@ export class TransformersJsTextBenchmark implements FrameworkBenchmark {
   }
 
   async loadModel(): Promise<void> {
-    let device: 'wasm' | 'webgpu' | 'webnn' = 'wasm';
-    if (this.backend === 'webgpu') device = 'webgpu';
-    else if (this.backend === 'webnn') device = 'webnn';
-    else if (isWasmBackend(this.backend)) device = 'wasm';
+    if (cachedClassifier) {
+      this.classifier = cachedClassifier;
+    } else {
+      let device: 'wasm' | 'webgpu' | 'webnn' = 'wasm';
+      if (this.backend === 'webgpu') device = 'webgpu';
+      else if (this.backend === 'webnn') device = 'webnn';
+      else if (isWasmBackend(this.backend)) device = 'wasm';
 
-    this.classifier = await pipeline(
-      'text-classification',
-      this.modelId,
-      { device, dtype: 'fp32' }
-    );
+      this.classifier = await pipeline(
+        'text-classification',
+        this.modelId,
+        { device, dtype: 'fp32' }
+      );
+      cachedClassifier = this.classifier;
+    }
   }
 
   setInput(input: BenchmarkInput): void {
@@ -78,7 +85,7 @@ export class TransformersJsTextBenchmark implements FrameworkBenchmark {
   }
 
   async dispose(): Promise<void> {
-    await this.classifier?.dispose();
+    // Don't dispose the classifier — it's cached for reuse across sessions
     this.classifier = null;
   }
 }

@@ -18,6 +18,8 @@ interface TFLiteNativeSession {
 
 const LABELS = ['NEGATIVE', 'POSITIVE'];
 
+let cachedSession: TFLiteNativeSession | null = null;
+
 export class TFLiteNativeTextBenchmark implements FrameworkBenchmark {
   name = 'TFLite Native';
   frameworkBytes = 0;
@@ -40,7 +42,12 @@ export class TFLiteNativeTextBenchmark implements FrameworkBenchmark {
   }
 
   async loadModel(): Promise<void> {
-    await this.session!.loadModel('distilbert-base-uncased-finetuned-sst-2-english');
+    if (cachedSession) {
+      this.session = cachedSession;
+    } else {
+      await this.session!.loadModel('distilbert-base-uncased-finetuned-sst-2-english');
+      cachedSession = this.session;
+    }
 
     this.tokenized = {
       inputIds: new Int32Array(128),
@@ -67,7 +74,7 @@ export class TFLiteNativeTextBenchmark implements FrameworkBenchmark {
   }
 
   async dispose(): Promise<void> {
-    this.session?.dispose();
+    // Don't dispose the session — it's cached for reuse across sessions
     this.session = null;
     this.tokenized = null;
   }

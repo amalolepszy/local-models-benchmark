@@ -4,6 +4,7 @@ import { loadLiteRt, loadAndCompile, Tensor, type CompiledModel } from '@litertj
 import { measureNewResources } from '../utils/metrics';
 
 let liteRtLoaded = false;
+const cachedModels: Record<string, CompiledModel> = {};
 
 export class LiteRTBenchmark implements FrameworkBenchmark {
   name = 'LiteRT.js';
@@ -32,7 +33,14 @@ export class LiteRTBenchmark implements FrameworkBenchmark {
 
   async loadModel(): Promise<void> {
     const accelerator = this.backend === 'webgpu' ? 'webgpu' : 'wasm';
-    this.model = await loadAndCompile(this.modelUrl, { accelerator });
+    const cacheKey = `${this.modelUrl}:${accelerator}`;
+
+    if (cachedModels[cacheKey]) {
+      this.model = cachedModels[cacheKey];
+    } else {
+      this.model = await loadAndCompile(this.modelUrl, { accelerator });
+      cachedModels[cacheKey] = this.model;
+    }
 
     // Default to random input — NHWC [1, 224, 224, 3]
     this.inputData = new Float32Array(1 * 224 * 224 * 3);
@@ -91,7 +99,7 @@ export class LiteRTBenchmark implements FrameworkBenchmark {
   }
 
   async dispose(): Promise<void> {
-    this.model?.delete();
+    // Don't delete the compiled model — it's cached for reuse across sessions
     this.model = null;
     this.inputData = new Float32Array(0);
   }

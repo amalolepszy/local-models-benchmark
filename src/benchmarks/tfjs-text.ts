@@ -5,6 +5,8 @@ import { measureNewResources, getContentLength } from '../utils/metrics';
 
 const LABELS = ['NEGATIVE', 'POSITIVE'];
 
+let cachedModel: tf.GraphModel | null = null;
+
 export class TfjsTextBenchmark implements FrameworkBenchmark {
   name = 'TensorFlow.js';
   supportedBackends: BackendId[] = ['wasm-simd-threads', 'webgl', 'webgpu'];
@@ -54,7 +56,12 @@ export class TfjsTextBenchmark implements FrameworkBenchmark {
   }
 
   async loadModel(): Promise<void> {
-    this.model = await tf.loadGraphModel(this.modelUrl);
+    if (cachedModel) {
+      this.model = cachedModel;
+    } else {
+      this.model = await tf.loadGraphModel(this.modelUrl);
+      cachedModel = this.model;
+    }
 
     // Default dummy tokenized input (sequence of zeros)
     this.tokenized = {
@@ -116,7 +123,7 @@ export class TfjsTextBenchmark implements FrameworkBenchmark {
   }
 
   async dispose(): Promise<void> {
-    this.model?.dispose();
+    // Don't dispose the model — it's cached for reuse across sessions
     this.model = null;
     this.tokenized = null;
   }

@@ -55,6 +55,7 @@ modeSelect.addEventListener('change', () => {
   const isSession = modeSelect.value === 'session';
   aggregateSection.hidden = isSession;
   sessionSection.hidden = !isSession;
+  warmupInput.value = isSession ? '0' : '3';
 });
 
 // --- Task toggle ---
