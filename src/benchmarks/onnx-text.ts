@@ -4,6 +4,8 @@ import { measureNewResources, getContentLength } from '../utils/metrics';
 
 const LABELS = ['NEGATIVE', 'POSITIVE'];
 
+let cachedSession: import('onnxruntime-web').InferenceSession | null = null;
+
 export class OnnxTextBenchmark implements FrameworkBenchmark {
   name = 'ONNX Runtime Web';
   frameworkBytes = 0;
@@ -58,8 +60,13 @@ export class OnnxTextBenchmark implements FrameworkBenchmark {
     else if (this.backend === 'webnn')     executionProviders = ['webnn'];
     else                                   executionProviders = ['wasm'];
 
-    const source: string | Uint8Array = this.modelBuffer ? new Uint8Array(this.modelBuffer) : this.modelUrl;
-    this.session = await ort.InferenceSession.create(source as string, { executionProviders });
+    if (cachedSession) {
+      this.session = cachedSession;
+    } else {
+      const source: string | Uint8Array = this.modelBuffer ? new Uint8Array(this.modelBuffer) : this.modelUrl;
+      this.session = await ort.InferenceSession.create(source as string, { executionProviders });
+      cachedSession = this.session;
+    }
 
     // Default dummy tokenized input
     this.tokenized = {
@@ -116,7 +123,7 @@ export class OnnxTextBenchmark implements FrameworkBenchmark {
   }
 
   async dispose(): Promise<void> {
-    await this.session?.release();
+    // Don't release the session — it's cached for reuse across sessions
     this.session = null;
     this.tokenized = null;
     this.ort = null;

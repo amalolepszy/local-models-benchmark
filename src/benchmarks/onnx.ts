@@ -2,6 +2,8 @@ import { isWasmBackend, getWasmFlags, type BackendId, type BenchmarkInput, type 
 import { IMAGENET_LABELS } from '../utils/imagenet-labels';
 import { measureNewResources, getContentLength } from '../utils/metrics';
 
+let cachedSession: import('onnxruntime-web').InferenceSession | null = null;
+
 export class OnnxBenchmark implements FrameworkBenchmark {
   name = 'ONNX Runtime Web';
   frameworkBytes = 0;
@@ -58,8 +60,13 @@ export class OnnxBenchmark implements FrameworkBenchmark {
     else if (this.backend === 'webnn')     executionProviders = ['webnn'];
     else                                   executionProviders = ['wasm'];
 
-    const source = this.modelBuffer ?? this.modelUrl;
-    this.session = await ort.InferenceSession.create(source, { executionProviders });
+    if (cachedSession) {
+      this.session = cachedSession;
+    } else {
+      const source = this.modelBuffer ?? this.modelUrl;
+      this.session = await ort.InferenceSession.create(source, { executionProviders });
+      cachedSession = this.session;
+    }
     // Default to random input — NCHW [1, 3, 224, 224]
     this.inputData = new Float32Array(1 * 3 * 224 * 224);
     for (let i = 0; i < this.inputData.length; i++) {
@@ -100,7 +107,7 @@ export class OnnxBenchmark implements FrameworkBenchmark {
   }
 
   async dispose(): Promise<void> {
-    await this.session?.release();
+    // Don't release the session — it's cached for reuse across sessions
     this.session = null;
     this.inputData = new Float32Array(0);
     this.ort = null;

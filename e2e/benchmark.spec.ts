@@ -1,21 +1,24 @@
 import { test, chromium } from '@playwright/test';
-import type { CDPSession, Page, BrowserContext } from '@playwright/test';
-import { writeFileSync } from 'fs';
+import type { CDPSession, Page } from '@playwright/test';
+import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
 /**
- * Automated benchmark runner with CDP memory measurements.
+ * Automated session-mode benchmark runner with CDP memory measurements.
  *
- * Each framework × backend combo runs in a fresh browser context
- * to avoid cross-contamination and COOP/COEP navigation issues.
+ * For each framework × backend combo, launches a single browser and runs
+ * SESSIONS iterations.  Each iteration creates a fresh benchmark instance
+ * (init → prefetch → load → single inference → dispose) inside the SAME
+ * browser so we can observe caching effects (WASM compilation cache,
+ * model data in Cache API, etc.) that make init/load faster over time.
  *
- * Measures ProcessPrivateMemoryFootprint (total process memory)
- * and JSHeapUsedSize before and after each benchmark run.
+ * 0 warmup iterations — every inference counts.
  */
 
 // Set via env: BENCHMARK_TASK=text npx playwright test e2e/benchmark.spec.ts
 const TASK = process.env.BENCHMARK_TASK === 'text' ? 'text-classification' : 'image-classification';
 const TEXT_INPUT = 'This movie was absolutely wonderful and I loved every moment of it.';
+const SESSIONS = parseInt(process.env.BENCHMARK_SESSIONS ?? '10', 10);
 
 const IMAGE_MATRIX: [string, string][] = [
   ['tfjs', 'wasm-simd-threads'],
@@ -57,19 +60,17 @@ interface CDPMemorySnapshot {
   jsHeapUsedMB: number;
 }
 
-interface BenchmarkResult {
+interface SessionIterationResult {
   framework: string;
   backend: string;
+  session: number;
   memoryBefore: CDPMemorySnapshot;
   memoryAfter: CDPMemorySnapshot;
   memoryDeltaMB: number;
   frameworkInitMs: number;
   modelLoadMs: number;
-  avgInferenceMs: number;
-  minInferenceMs: number;
-  maxInferenceMs: number;
-  p95InferenceMs: number;
-  predictions: { label: string; score: number }[];
+  inferenceMs: number;
+  totalMs: number;
   error?: string;
 }
 
@@ -80,7 +81,6 @@ async function getCDPMemory(cdp: CDPSession, page: Page): Promise<CDPMemorySnaps
 
   await new Promise(r => setTimeout(r, 300));
 
-  // Get JS heap from performance.memory (Chrome-only, enabled via --enable-precise-memory-info)
   const jsMemory = await page.evaluate(() => {
     const perf = performance as any;
     if (perf.memory) {
@@ -92,17 +92,9 @@ async function getCDPMemory(cdp: CDPSession, page: Page): Promise<CDPMemorySnaps
     return null;
   });
 
-  // Get process memory via CDP Performance.getMetrics
   const { metrics } = await cdp.send('Performance.getMetrics');
   const processMemory = metrics.find(m => m.name === 'ProcessPrivateMemoryFootprint');
   const jsHeapCDP = metrics.find(m => m.name === 'JSHeapUsedSize');
-
-  // Also try to get detailed memory breakdown via Memory.getBrowserSamplingProfile
-  let totalFromSampling = 0;
-  try {
-    const sampling = await cdp.send('Memory.getDOMCounters' as any);
-    totalFromSampling = (sampling as any)?.jsHeapSizeUsed ?? 0;
-  } catch { /* may not be available */ }
 
   const jsHeapMB = jsMemory
     ? jsMemory.usedJSHeapSize / 1024 / 1024
@@ -110,7 +102,6 @@ async function getCDPMemory(cdp: CDPSession, page: Page): Promise<CDPMemorySnaps
 
   const processMemMB = (processMemory?.value ?? 0) / 1024 / 1024;
 
-  // If ProcessPrivateMemoryFootprint is 0, use totalJSHeapSize as a rough proxy
   const effectiveProcessMB = processMemMB > 0
     ? processMemMB
     : jsMemory
@@ -123,12 +114,16 @@ async function getCDPMemory(cdp: CDPSession, page: Page): Promise<CDPMemorySnaps
   };
 }
 
-async function runSingleBenchmark(
+/**
+ * Run N session iterations for a single framework × backend combo
+ * inside the same browser instance.
+ */
+async function runSessionBenchmark(
   framework: string,
   backend: string,
   baseURL: string,
-): Promise<BenchmarkResult> {
-  // Fresh browser context per combo — avoids COOP context destruction
+  sessions: number,
+): Promise<SessionIterationResult[]> {
   const browser = await chromium.launch({
     executablePath: 'D:/chr-build/chromium/src/out/Release/chrome.exe',
     headless: false,
@@ -141,26 +136,27 @@ async function runSingleBenchmark(
     ],
   });
 
-  const context = await browser.newContext();
-  const page = await context.newPage();
-  const cdp = await context.newCDPSession(page);
-  await cdp.send('Performance.enable');
+  const results: SessionIterationResult[] = [];
 
   try {
-    await page.goto(baseURL, { waitUntil: 'load', timeout: 30000 });
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Performance.enable');
 
-    // Wait for the __benchmark API to be ready
+    page.setDefaultTimeout(4 * 60_000);
+    await page.goto(baseURL, { waitUntil: 'load', timeout: 30000 });
     await page.waitForFunction(
       () => (window as any).__benchmark !== undefined,
       { timeout: 15000 },
     );
 
-    // Configure task and input
+    // Configure task and input once
     await page.evaluate(
       async ([fw, be, task, textInput]) => {
         const b = (window as any).__benchmark;
         b.setTask(task);
-        b.configure(fw, be, 10, 3);
+        b.configure(fw, be, 1, 0);
         if (task === 'image-classification') {
           await b.loadImage('/rocky.jpg');
         } else {
@@ -170,110 +166,156 @@ async function runSingleBenchmark(
       [framework, backend, TASK, TEXT_INPUT],
     );
 
-    // Measure memory before
-    const memoryBefore = await getCDPMemory(cdp, page);
+    for (let i = 1; i <= sessions; i++) {
+      try {
+        const memoryBefore = await getCDPMemory(cdp, page);
 
-    // Run the benchmark (this blocks until done)
-    const metrics: any = await page.evaluate(
-      () => (window as any).__benchmark.run(),
-      { timeout: 4 * 60_000 },
-    );
+        // Each iteration: create adapter → init → prefetch → load → inference → dispose
+        const metrics: any = await page.evaluate(
+          async ([fw, be, task]) => {
+            const { createBenchmark } = await import('/src/benchmarks/index.ts');
 
-    // Measure memory after
-    const memoryAfter = await getCDPMemory(cdp, page);
+            const benchmark = createBenchmark(fw, task);
 
-    return {
-      framework: metrics.framework,
-      backend: metrics.backend,
-      memoryBefore,
-      memoryAfter,
-      memoryDeltaMB: Math.round((memoryAfter.processMemoryMB - memoryBefore.processMemoryMB) * 100) / 100,
-      frameworkInitMs: metrics.frameworkInitMs,
-      modelLoadMs: metrics.modelLoadMs,
-      avgInferenceMs: metrics.avgInferenceMs,
-      minInferenceMs: metrics.minInferenceMs,
-      maxInferenceMs: metrics.maxInferenceMs,
-      p95InferenceMs: metrics.p95InferenceMs,
-      predictions: metrics.predictions.map((p: any) => ({
-        label: p.label,
-        score: Math.round(p.score * 10000) / 100,
-      })),
-    };
+            const initStart = performance.now();
+            await benchmark.initFramework(be);
+            const frameworkInitMs = performance.now() - initStart;
+
+            await benchmark.prefetchModel();
+
+            const loadStart = performance.now();
+            await benchmark.loadModel();
+            const modelLoadMs = performance.now() - loadStart;
+
+            // Prepare input
+            const b = (window as any).__benchmark;
+            if (task === 'image-classification') {
+              const img = b.__getCurrentImage();
+              benchmark.setInput({ type: 'image', image: img });
+            } else {
+              const { getTokenizer } = await import('/src/utils/tokenizer.ts');
+              const tokenizer = await getTokenizer();
+              const text = (document.getElementById('text-input') as HTMLInputElement).value;
+              const tokenized = tokenizer.tokenize(text);
+              benchmark.setInput({ type: 'text', text: tokenized, rawText: text });
+            }
+
+            const infStart = performance.now();
+            await benchmark.runInference();
+            const inferenceMs = performance.now() - infStart;
+
+            await benchmark.dispose();
+
+            return {
+              framework: benchmark.name,
+              backend: be.toUpperCase(),
+              frameworkInitMs: Math.round(frameworkInitMs * 100) / 100,
+              modelLoadMs: Math.round(modelLoadMs * 100) / 100,
+              inferenceMs: Math.round(inferenceMs * 100) / 100,
+            };
+          },
+          [framework, backend, TASK],
+        );
+
+        const memoryAfter = await getCDPMemory(cdp, page);
+
+        results.push({
+          framework: metrics.framework,
+          backend: metrics.backend,
+          session: i,
+          memoryBefore,
+          memoryAfter,
+          memoryDeltaMB: Math.round((memoryAfter.processMemoryMB - memoryBefore.processMemoryMB) * 100) / 100,
+          frameworkInitMs: metrics.frameworkInitMs,
+          modelLoadMs: metrics.modelLoadMs,
+          inferenceMs: metrics.inferenceMs,
+          totalMs: Math.round((metrics.frameworkInitMs + metrics.modelLoadMs + metrics.inferenceMs) * 100) / 100,
+        });
+      } catch (err: any) {
+        const zero: CDPMemorySnapshot = { processMemoryMB: 0, jsHeapUsedMB: 0 };
+        results.push({
+          framework, backend: backend.toUpperCase(),
+          session: i,
+          memoryBefore: zero, memoryAfter: zero, memoryDeltaMB: 0,
+          frameworkInitMs: 0, modelLoadMs: 0, inferenceMs: 0, totalMs: 0,
+          error: err.message || String(err),
+        });
+      }
+    }
   } finally {
     await browser.close();
   }
+
+  return results;
 }
 
-function emptyResult(framework: string, backend: string, error: string): BenchmarkResult {
-  const zero: CDPMemorySnapshot = { processMemoryMB: 0, jsHeapUsedMB: 0 };
-  return {
-    framework, backend: backend.toUpperCase(),
-    memoryBefore: zero, memoryAfter: zero, memoryDeltaMB: 0,
-    frameworkInitMs: 0, modelLoadMs: 0,
-    avgInferenceMs: 0, minInferenceMs: 0, maxInferenceMs: 0, p95InferenceMs: 0,
-    predictions: [], error,
-  };
-}
-
-test('run all benchmarks with CDP memory profiling', async () => {
+test('run all benchmarks — session mode with CDP memory', async () => {
   const baseURL = 'http://localhost:5173';
-  const results: BenchmarkResult[] = [];
+  const allResults: SessionIterationResult[] = [];
 
   for (const [framework, backend] of MATRIX) {
     const combo = `${framework}:${backend}`;
-    console.log(`  RUN  ${combo}`);
+    console.log(`\n  === ${combo} (${SESSIONS} sessions) ===`);
 
     try {
-      const result = await runSingleBenchmark(framework, backend, baseURL);
-      results.push(result);
+      const iterResults = await runSessionBenchmark(framework, backend, baseURL, SESSIONS);
 
-      console.log(
-        `  DONE ${combo} — ` +
-        `init: ${result.frameworkInitMs}ms, ` +
-        `load: ${result.modelLoadMs}ms, ` +
-        `avg: ${result.avgInferenceMs}ms, ` +
-        `mem: ${result.memoryBefore.processMemoryMB} → ${result.memoryAfter.processMemoryMB} MB ` +
-        `(+${result.memoryDeltaMB} MB)`,
-      );
+      for (const r of iterResults) {
+        allResults.push(r);
+        if (r.error) {
+          console.log(`    #${r.session} FAIL — ${r.error}`);
+        } else {
+          console.log(
+            `    #${r.session}  init:${r.frameworkInitMs}ms  load:${r.modelLoadMs}ms  ` +
+            `inf:${r.inferenceMs}ms  total:${r.totalMs}ms  ` +
+            `mem:${r.memoryBefore.processMemoryMB}→${r.memoryAfter.processMemoryMB}MB`,
+          );
+        }
+      }
     } catch (err: any) {
       const msg = err.message || String(err);
       console.log(`  FAIL ${combo} — ${msg}`);
-      results.push(emptyResult(framework, backend, msg));
+      const zero: CDPMemorySnapshot = { processMemoryMB: 0, jsHeapUsedMB: 0 };
+      allResults.push({
+        framework, backend: backend.toUpperCase(),
+        session: 0,
+        memoryBefore: zero, memoryAfter: zero, memoryDeltaMB: 0,
+        frameworkInitMs: 0, modelLoadMs: 0, inferenceMs: 0, totalMs: 0,
+        error: msg,
+      });
     }
   }
 
   // Save JSON
   const taskSuffix = TASK === 'text-classification' ? 'text' : 'image';
   const outputDir = join(process.cwd(), 'benchmark_results');
-  const { mkdirSync } = await import('fs');
   mkdirSync(outputDir, { recursive: true });
-  const outputPath = join(outputDir, `benchmark_results_${taskSuffix}.json`);
+
+  const jsonPath = join(outputDir, `session_results_${taskSuffix}.json`);
   const report = {
     timestamp: new Date().toISOString(),
-    results,
-    errors: results.filter(r => r.error),
+    task: TASK,
+    sessionsPerCombo: SESSIONS,
+    results: allResults,
+    errors: allResults.filter(r => r.error),
   };
-  writeFileSync(outputPath, JSON.stringify(report, null, 2));
-  console.log(`\nResults saved to ${outputPath}`);
+  writeFileSync(jsonPath, JSON.stringify(report, null, 2));
+  console.log(`\nJSON saved to ${jsonPath}`);
 
   // Save CSV
-  const csvPath = join(outputDir, `benchmark_results_${taskSuffix}.csv`);
+  const csvPath = join(outputDir, `session_results_${taskSuffix}.csv`);
   const csvHeader = [
-    'Framework', 'Backend',
-    'FrameworkInit(ms)', 'ModelLoad(ms)',
-    'AvgInference(ms)', 'MinInference(ms)', 'MaxInference(ms)', 'P95Inference(ms)',
+    'Framework', 'Backend', 'Session#',
+    'FrameworkInit(ms)', 'ModelLoad(ms)', 'Inference(ms)', 'Total(ms)',
     'MemBefore_Process(MB)', 'MemAfter_Process(MB)', 'MemDelta_Process(MB)',
     'MemBefore_JSHeap(MB)', 'MemAfter_JSHeap(MB)',
-    'Top1Prediction', 'Top1Score(%)',
     'Error',
   ].join(',');
-  const csvRows = results.map(r => [
-    r.framework, r.backend,
-    r.frameworkInitMs, r.modelLoadMs,
-    r.avgInferenceMs, r.minInferenceMs, r.maxInferenceMs, r.p95InferenceMs,
+  const csvRows = allResults.map(r => [
+    r.framework, r.backend, r.session,
+    r.frameworkInitMs, r.modelLoadMs, r.inferenceMs, r.totalMs,
     r.memoryBefore.processMemoryMB, r.memoryAfter.processMemoryMB, r.memoryDeltaMB,
     r.memoryBefore.jsHeapUsedMB, r.memoryAfter.jsHeapUsedMB,
-    `"${r.predictions[0]?.label ?? 'N/A'}"`, r.predictions[0]?.score ?? 'N/A',
     `"${r.error ?? ''}"`,
   ].join(','));
   writeFileSync(csvPath, [csvHeader, ...csvRows].join('\n'));

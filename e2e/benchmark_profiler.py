@@ -41,7 +41,7 @@ except ImportError:
 BASE_URL = "http://localhost:5173"
 SAMPLE_INTERVAL_MS = 50
 ITERATIONS = 30
-WARMUP = 5
+WARMUP = 0
 
 import argparse
 
@@ -52,7 +52,21 @@ _parser.add_argument(
     default="image",
     help="Task to benchmark: image (classification) or text (sentiment)",
 )
+_parser.add_argument(
+    "--mode",
+    choices=["aggregate", "session"],
+    default="aggregate",
+    help="aggregate: one run with N inference iterations; session: N cold-start sessions",
+)
+_parser.add_argument(
+    "--sessions",
+    type=int,
+    default=10,
+    help="Number of sessions in session mode (default: 10)",
+)
 _args = _parser.parse_args()
+MODE = _args.mode
+SESSIONS = _args.sessions
 
 TASK = "text-classification" if _args.task == "text" else "image-classification"
 TEXT_INPUT = "This movie was absolutely wonderful and I loved every moment of it."
@@ -575,6 +589,307 @@ def run_benchmark_phased(framework: str, backend: str) -> BenchmarkResult:
 
 
 # ---------------------------------------------------------------------------
+# Session result — one row per cold-start iteration
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SessionResult:
+    framework: str
+    backend: str
+    task: str
+    session_num: int
+    framework_init_ms: float = 0
+    model_load_ms: float = 0
+    inference_ms: float = 0
+    total_ms: float = 0
+    # Per-phase resource metrics
+    init_avg_cpu: float = 0
+    init_peak_cpu: float = 0
+    init_avg_gpu: float = 0
+    init_peak_gpu: float = 0
+    load_avg_cpu: float = 0
+    load_peak_cpu: float = 0
+    load_mem_rss_start_mb: float = 0
+    load_mem_rss_end_mb: float = 0
+    load_mem_delta_mb: float = 0
+    inf_avg_cpu: float = 0
+    inf_peak_cpu: float = 0
+    inf_avg_gpu: float = 0
+    inf_peak_gpu: float = 0
+    inf_mem_rss_start_mb: float = 0
+    inf_mem_rss_end_mb: float = 0
+    inf_mem_delta_mb: float = 0
+    inf_gpu_mem_start_mb: float = 0
+    inf_gpu_mem_end_mb: float = 0
+    inf_gpu_mem_delta_mb: float = 0
+    error: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Run N session iterations in a single browser (observe caching effects)
+# ---------------------------------------------------------------------------
+
+def run_session_combo(
+    framework: str, backend: str, sessions: int
+) -> list[SessionResult]:
+    """
+    Launches ONE browser, configures the UI for session mode, clicks
+    'Run Benchmark', and polls the session results table for new rows.
+    Resource sampling (CPU/GPU/RAM) runs in a background thread throughout.
+    """
+    results: list[SessionResult] = []
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            executable_path=r"D:\chr-build\chromium\src\out\Release\chrome.exe",
+            headless=False,
+            args=CHROME_ARGS,
+        )
+        context = browser.new_context()
+        page = context.new_page()
+        page.set_default_timeout(10 * 60_000)  # 10 min for slow combos
+
+        pids = get_browser_pids(browser)
+        print(f"    Monitoring PIDs: {pids}")
+        sampler = ResourceSampler(pids)
+
+        try:
+            page.goto(BASE_URL, wait_until="load", timeout=30000)
+            page.wait_for_function(
+                "() => window.__benchmark !== undefined",
+                timeout=15000,
+            )
+
+            # --- Configure UI ---
+            # Task
+            page.select_option("#task", TASK)
+            page.dispatch_event("#task", "change")
+
+            # Framework & backend
+            page.select_option("#framework", framework)
+            page.dispatch_event("#framework", "change")
+            page.select_option("#backend", backend)
+
+            # Session mode, iterations = sessions, warmup = 0
+            page.select_option("#mode", "session")
+            page.dispatch_event("#mode", "change")
+            page.fill("#iterations", str(sessions))
+            page.fill("#warmup", "0")
+
+            # Set input
+            if TASK == "image-classification":
+                page.evaluate(
+                    "async () => await window.__benchmark.loadImage('/rocky.jpg')",
+                )
+            else:
+                page.fill("#text-input", TEXT_INPUT)
+
+            # Start sampling and click Run
+            sampler.start()
+            sampler.set_phase("running")
+            page.click("#run-btn")
+
+            # --- Poll for session rows ---
+            # The UI appends one <tr> per session to #session-results-body.
+            # We wait until we see `sessions` rows (excluding .placeholder-row).
+            prev_count = 0
+            while True:
+                row_count = page.evaluate(
+                    """() => {
+                        const rows = document.querySelectorAll(
+                            '#session-results-body tr:not(.placeholder-row)'
+                        );
+                        return rows.length;
+                    }""",
+                )
+
+                # Log progress when a new row appears
+                if row_count > prev_count:
+                    sampler.set_phase(f"session_{row_count}")
+                    prev_count = row_count
+
+                if row_count >= sessions:
+                    break
+
+                # Also check if the run finished early (error / button re-enabled)
+                btn_disabled = page.evaluate(
+                    "() => document.getElementById('run-btn').disabled",
+                )
+                if not btn_disabled and row_count > 0:
+                    break  # Run finished (possibly with errors)
+
+                time.sleep(0.3)
+
+            sampler.set_phase("done")
+            time.sleep(0.5)
+            sampler.stop()
+
+            # --- Read results from the DOM ---
+            rows_data = page.evaluate(
+                """() => {
+                    const rows = document.querySelectorAll(
+                        '#session-results-body tr:not(.placeholder-row)'
+                    );
+                    return Array.from(rows).map(tr => {
+                        const cells = tr.querySelectorAll('td');
+                        // Error row has class status-error on a colspan cell
+                        const errorCell = tr.querySelector('.status-error');
+                        if (errorCell) {
+                            return {
+                                num: cells[0]?.textContent ?? '0',
+                                error: errorCell.textContent ?? 'Unknown error',
+                            };
+                        }
+                        return {
+                            num: cells[0]?.textContent ?? '0',
+                            framework: cells[1]?.textContent ?? '',
+                            backend: cells[2]?.textContent ?? '',
+                            initMs: cells[3]?.textContent ?? '0',
+                            loadMs: cells[4]?.textContent ?? '0',
+                            inferenceMs: cells[5]?.textContent ?? '0',
+                            totalMs: cells[6]?.textContent ?? '0',
+                            memMB: cells[7]?.textContent ?? 'N/A',
+                            memDelta: cells[8]?.textContent ?? 'N/A',
+                        };
+                    });
+                }""",
+            )
+
+            # Build SessionResult objects with timing from DOM + resources from sampler
+            for row in rows_data:
+                s = int(row.get("num", 0) or 0)
+                result = SessionResult(
+                    framework=framework, backend=backend, task=TASK,
+                    session_num=s,
+                )
+
+                if "error" in row:
+                    result.error = row["error"]
+                else:
+                    result.framework_init_ms = float(row.get("initMs", 0) or 0)
+                    result.model_load_ms = float(row.get("loadMs", 0) or 0)
+                    result.inference_ms = float(row.get("inferenceMs", 0) or 0)
+                    result.total_ms = float(row.get("totalMs", 0) or 0)
+
+                # Attach resource metrics from the closest sampled phase
+                phase = sampler.get_phase_metrics(f"session_{s}")
+                if phase.sample_count == 0:
+                    # Fall back to overall "running" phase
+                    phase = sampler.get_phase_metrics("running")
+
+                result.init_avg_cpu = phase.avg_cpu_percent
+                result.init_peak_cpu = phase.peak_cpu_percent
+                result.init_avg_gpu = phase.avg_gpu_percent
+                result.init_peak_gpu = phase.peak_gpu_percent
+                result.inf_avg_cpu = phase.avg_cpu_percent
+                result.inf_peak_cpu = phase.peak_cpu_percent
+                result.inf_avg_gpu = phase.avg_gpu_percent
+                result.inf_peak_gpu = phase.peak_gpu_percent
+                result.inf_mem_rss_start_mb = phase.memory_rss_start_mb
+                result.inf_mem_rss_end_mb = phase.memory_rss_end_mb
+                result.inf_mem_delta_mb = phase.memory_rss_delta_mb
+                result.inf_gpu_mem_start_mb = phase.gpu_memory_start_mb
+                result.inf_gpu_mem_end_mb = phase.gpu_memory_end_mb
+                result.inf_gpu_mem_delta_mb = phase.gpu_memory_delta_mb
+
+                results.append(result)
+
+        except Exception as e:
+            sampler.stop()
+            results.append(SessionResult(
+                framework=framework, backend=backend, task=TASK,
+                session_num=0, error=str(e),
+            ))
+            import traceback
+            traceback.print_exc()
+
+        finally:
+            browser.close()
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Save session results
+# ---------------------------------------------------------------------------
+
+def save_session_results(results: list[SessionResult]):
+    output_dir = Path(__file__).parent.parent / "benchmark_results"
+    output_dir.mkdir(exist_ok=True)
+    task_suffix = "text" if TASK == "text-classification" else "image"
+
+    # JSON
+    json_path = output_dir / f"session_results_{task_suffix}.json"
+    report = {
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "task": TASK,
+        "mode": "session",
+        "sessions_per_combo": SESSIONS,
+        "gpu_available": HAS_GPU_MONITOR,
+        "results": [asdict(r) for r in results],
+    }
+    json_path.write_text(json.dumps(report, indent=2))
+    print(f"\nJSON saved to {json_path}")
+
+    # CSV
+    csv_path = output_dir / f"session_results_{task_suffix}.csv"
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "Task", "Framework", "Backend", "Session#",
+            "FrameworkInit(ms)", "ModelLoad(ms)", "Inference(ms)", "Total(ms)",
+            # Init phase
+            "Init_AvgCPU(%)", "Init_PeakCPU(%)",
+            "Init_AvgGPU(%)", "Init_PeakGPU(%)",
+            # Model load phase
+            "Load_AvgCPU(%)", "Load_PeakCPU(%)",
+            "Load_MemRSS_Start(MB)", "Load_MemRSS_End(MB)", "Load_MemDelta(MB)",
+            # Inference phase
+            "Inf_AvgCPU(%)", "Inf_PeakCPU(%)",
+            "Inf_AvgGPU(%)", "Inf_PeakGPU(%)",
+            "Inf_MemRSS_Start(MB)", "Inf_MemRSS_End(MB)", "Inf_MemDelta(MB)",
+            "Inf_GPU_Mem_Start(MB)", "Inf_GPU_Mem_End(MB)", "Inf_GPU_Mem_Delta(MB)",
+            "Error",
+        ])
+
+        for r in results:
+            writer.writerow([
+                r.task, r.framework, r.backend, r.session_num,
+                r.framework_init_ms, r.model_load_ms, r.inference_ms, r.total_ms,
+                r.init_avg_cpu, r.init_peak_cpu,
+                r.init_avg_gpu, r.init_peak_gpu,
+                r.load_avg_cpu, r.load_peak_cpu,
+                r.load_mem_rss_start_mb, r.load_mem_rss_end_mb, r.load_mem_delta_mb,
+                r.inf_avg_cpu, r.inf_peak_cpu,
+                r.inf_avg_gpu, r.inf_peak_gpu,
+                r.inf_mem_rss_start_mb, r.inf_mem_rss_end_mb, r.inf_mem_delta_mb,
+                r.inf_gpu_mem_start_mb, r.inf_gpu_mem_end_mb, r.inf_gpu_mem_delta_mb,
+                r.error or "",
+            ])
+
+    print(f"CSV saved to {csv_path}")
+
+    # Summary table
+    print("\n" + "=" * 130)
+    print(f"{'Framework':<18} {'Backend':<18} {'#':>3} {'Init':>8} {'Load':>8} {'Inf':>8} "
+          f"{'Total':>8} {'CPU%':>6} {'GPU%':>6} {'RSS(MB)':>10} {'GPU Mem':>10}")
+    print("-" * 130)
+    for r in results:
+        if r.error:
+            print(f"{r.framework:<18} {r.backend:<18} {r.session_num:>3} ERROR: {r.error[:50]}")
+            continue
+        print(
+            f"{r.framework:<18} {r.backend:<18} {r.session_num:>3} "
+            f"{r.framework_init_ms:>7.1f} {r.model_load_ms:>7.1f} {r.inference_ms:>7.1f} "
+            f"{r.total_ms:>7.1f} "
+            f"{r.inf_avg_cpu:>5.1f} {r.inf_avg_gpu:>5.1f} "
+            f"{r.inf_mem_rss_end_mb:>9.1f} "
+            f"{r.inf_gpu_mem_end_mb:>9.1f}"
+        )
+    print("=" * 130)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -584,8 +899,49 @@ def main():
         gpus = GPUtil.getGPUs()
         for gpu in gpus:
             print(f"  GPU: {gpu.name}, {gpu.memoryTotal}MB VRAM")
+    print(f"Mode: {MODE}")
     print()
 
+    if MODE == "session":
+        main_session()
+    else:
+        main_aggregate()
+
+
+def main_session():
+    all_results: list[SessionResult] = []
+
+    for framework, backend in MATRIX:
+        combo = f"{framework}:{backend}"
+        print(f"\n  === {combo} ({SESSIONS} sessions) ===")
+
+        try:
+            combo_results = run_session_combo(framework, backend, SESSIONS)
+            for r in combo_results:
+                all_results.append(r)
+                if r.error:
+                    print(f"    #{r.session_num} FAIL: {r.error[:60]}")
+                else:
+                    print(
+                        f"    #{r.session_num}  "
+                        f"init:{r.framework_init_ms}ms  "
+                        f"load:{r.model_load_ms}ms  "
+                        f"inf:{r.inference_ms}ms  "
+                        f"cpu:{r.inf_avg_cpu}%  "
+                        f"gpu:{r.inf_avg_gpu}%  "
+                        f"rss:{r.inf_mem_rss_end_mb}MB"
+                    )
+        except Exception as e:
+            print(f"  FAIL {combo} — {e}")
+            all_results.append(SessionResult(
+                framework=framework, backend=backend, task=TASK,
+                session_num=0, error=str(e),
+            ))
+
+    save_session_results(all_results)
+
+
+def main_aggregate():
     results: list[BenchmarkResult] = []
 
     for framework, backend in MATRIX:
@@ -622,6 +978,7 @@ def main():
     report = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "task": TASK,
+        "mode": "aggregate",
         "gpu_available": HAS_GPU_MONITOR,
         "results": [asdict(r) for r in results],
     }

@@ -6,6 +6,7 @@ import { measureNewResources } from '../utils/metrics';
 const LABELS = ['NEGATIVE', 'POSITIVE'];
 
 let liteRtLoaded = false;
+let cachedModel: CompiledModel | null = null;
 
 export class LiteRTTextBenchmark implements FrameworkBenchmark {
   name = 'LiteRT.js';
@@ -33,8 +34,12 @@ export class LiteRTTextBenchmark implements FrameworkBenchmark {
   }
 
   async loadModel(): Promise<void> {
-    // TFLite DistilBERT — no WebGPU support (text models typically WASM only)
-    this.model = await loadAndCompile(this.modelUrl, { accelerator: 'wasm' });
+    if (cachedModel) {
+      this.model = cachedModel;
+    } else {
+      this.model = await loadAndCompile(this.modelUrl, { accelerator: 'wasm' });
+      cachedModel = this.model;
+    }
 
     // Default dummy tokenized input
     this.tokenized = {
@@ -85,7 +90,7 @@ export class LiteRTTextBenchmark implements FrameworkBenchmark {
   }
 
   async dispose(): Promise<void> {
-    this.model?.delete();
+    // Don't delete the compiled model — it's cached for reuse across sessions
     this.model = null;
     this.tokenized = null;
   }
