@@ -38,6 +38,17 @@ const allResults: BenchmarkMetrics[] = [];
 let currentImage: PreprocessedImage | null = null;
 let currentTokenized: TokenizedText | null = null;
 
+// Continuous-inference loop state (for Speedometer-under-load runs)
+type ContinuousState = {
+  benchmark: ReturnType<typeof createBenchmark>;
+  running: boolean;
+  count: number;
+  startTime: number;
+  loop: Promise<void>;
+  lastError: string | null;
+};
+let continuousState: ContinuousState | null = null;
+
 // --- Backend dropdown population ---
 function updateBackendOptions() {
   const fw = frameworkSelect.value as FrameworkId;
@@ -577,6 +588,89 @@ function addResultRow(m: BenchmarkMetrics) {
   /** Get the framework-backend matrix */
   getMatrix() {
     return FRAMEWORK_BACKENDS;
+  },
+
+  /**
+   * Start a continuous inference loop using the currently-selected
+   * framework/backend/task. Resolves once the model is loaded and the loop
+   * is actively running; the loop itself continues in the background until
+   * stopContinuous() is called. Caller MUST set input first via
+   * loadImage()/setTextInput(). Throws if a loop is already running.
+   */
+  async startContinuous(): Promise<void> {
+    if (continuousState) {
+      throw new Error('Continuous inference is already running');
+    }
+    const frameworkId = frameworkSelect.value as FrameworkId;
+    const backendId = backendSelect.value as BackendId;
+    const task = getSelectedTask();
+
+    const benchmark = createBenchmark(frameworkId, task);
+    await benchmark.initFramework(backendId);
+    await benchmark.prefetchModel();
+    await benchmark.loadModel();
+    const input = await prepareInput();
+    benchmark.setInput(input);
+
+    // Mutated by the loop and by stopContinuous().
+    const state: ContinuousState = {
+      benchmark,
+      running: true,
+      count: 0,
+      startTime: performance.now(),
+      lastError: null,
+      loop: Promise.resolve(),
+    };
+    state.loop = (async () => {
+      while (state.running) {
+        try {
+          await benchmark.runInference();
+          state.count++;
+          // Yield to the macrotask queue. Without this, WASM inference
+          // resolves synchronously and the await chain stays in the
+          // microtask queue forever — CDP/render/timers get starved.
+          await new Promise(resolve => setTimeout(resolve, 0));
+        } catch (err: any) {
+          state.lastError = err?.message ?? String(err);
+          state.running = false;
+          break;
+        }
+      }
+    })();
+    continuousState = state;
+  },
+
+  /**
+   * Stop the continuous inference loop, await the in-flight iteration,
+   * dispose the benchmark, and return how much work was done.
+   */
+  async stopContinuous(): Promise<{ count: number; elapsedMs: number; error: string | null }> {
+    const state = continuousState;
+    if (!state) return { count: 0, elapsedMs: 0, error: null };
+    state.running = false;
+    await state.loop;
+    const elapsedMs = round(performance.now() - state.startTime);
+    const result = { count: state.count, elapsedMs, error: state.lastError };
+    try {
+      await state.benchmark.dispose();
+    } catch (err) {
+      console.warn('Continuous dispose failed:', err);
+    }
+    continuousState = null;
+    return result;
+  },
+
+  /** Snapshot of the running loop without stopping it. */
+  getContinuousStatus(): { running: boolean; count: number; elapsedMs: number; error: string | null } {
+    if (!continuousState) {
+      return { running: false, count: 0, elapsedMs: 0, error: null };
+    }
+    return {
+      running: continuousState.running,
+      count: continuousState.count,
+      elapsedMs: round(performance.now() - continuousState.startTime),
+      error: continuousState.lastError,
+    };
   },
 };
 
