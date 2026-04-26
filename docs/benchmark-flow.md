@@ -33,8 +33,8 @@ flowchart TD
 
     S_Loop -->|Następna sesja| S_Create["Nowa instancja adaptera<br/>createBenchmark(framework, task)"]
     S_Create --> S_Init["Inicjalizacja frameworka<br/>initFramework(backend)<br/>⏱ mierzony czas"]
-    S_Init --> S_Prefetch["Pobranie modelu<br/>prefetchModel()<br/>⏱ czas NIE mierzony"]
-    S_Prefetch --> S_Load["Kompilacja modelu<br/>loadModel()<br/>⏱ mierzony czas"]
+    S_Init --> S_Prefetch["Pobranie modelu<br/>prefetchModel()<br/>⏱ czas NIE mierzony<br/>(po sesji 1 — cache HTTP)"]
+    S_Prefetch --> S_Load["Kompilacja modelu<br/>loadModel()<br/>⏱ mierzony czas<br/>(po sesji 1 — cache modulu, ~0 ms)"]
     S_Load --> S_SetInput["Ustawienie danych wejściowych"]
     S_SetInput --> S_Infer["Pojedyncza inferencja<br/>runInference()<br/>⏱ mierzony czas"]
     S_Infer --> S_Mem["Pomiar pamięci<br/>+ delta względem poprzedniej sesji"]
@@ -77,7 +77,7 @@ flowchart TD
 
 | Cecha | Tryb zagregowany | Tryb sesyjny |
 |-------|-----------------|--------------|
-| Model ladowany | 1 raz | Co sesje od nowa |
-| Rozgrzewka | Domyslnie 3 iteracje | Domyslnie 0 |
+| `loadModel()` wolane | 1 raz | Co sesje (cache modulu w `src/benchmarks/*.ts` — sesja 1 kompiluje, 2..N cache-hit ~0 ms) |
+| Rozgrzewka | Domyslnie 3 iteracje | Brak (warmup nie jest wywolywany w pętli sesji) |
 | Inferencja | N iteracji, statystyki zbiorcze | 1 inferencja na sesje |
-| Cel pomiaru | Wydajnosc inferencji (steady-state) | Narzut zimnego startu (cold-start) |
+| Cel pomiaru | Wydajnosc inferencji (steady-state) | Sesja 1: zimny start; sesje 2..N: powtarzalnosc cieplej sciezki + dispatch overhead |
