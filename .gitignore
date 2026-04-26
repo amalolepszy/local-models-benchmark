@@ -146,3 +146,6 @@ package-lock.json
 
 public/
 benchmark_results/
+vendor/
+
+e2e/__pycache__/
