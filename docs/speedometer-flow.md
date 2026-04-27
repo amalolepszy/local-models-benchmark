@@ -34,11 +34,21 @@ python e2e/speedometer_under_load.py --combos onnx:webgpu,tfjs:webgpu
 python e2e/speedometer_under_load.py --all                          # cala IMAGE_MATRIX (14 kombinacji)
 python e2e/speedometer_under_load.py --all --task text              # cala TEXT_MATRIX (13 kombinacji)
 python e2e/speedometer_under_load.py --all --no-baseline
+python e2e/speedometer_under_load.py --all --repeats 5              # 5 powtorzen na kombinacje + agregaty
 ```
 
-Wyniki: `benchmark_results/speedometer_under_load.{json,csv}`. Plik jest
-nadpisywany po **kazdym** scenariuszu (incremental save), wiec crash
-w polowie macierzy nie kasuje wynikow wczesniejszych kombinacji.
+Wyniki:
+- `benchmark_results/speedometer_under_load.csv` — jeden wiersz na **kazdy
+  pojedynczy bieg** (z kolumna `Repeat`).
+- `benchmark_results/speedometer_under_load_summary.csv` — jeden wiersz
+  na unikalna kombinacje (scenario, framework, backend, task) z
+  agregatami `avg/min/max/p95/stdev` po wszystkich powtorzeniach.
+- `benchmark_results/speedometer_under_load.json` — `{"runs": [...],
+  "summary": [...]}` zawierajacy oba widoki.
+
+Wszystko jest nadpisywane po **kazdym pojedynczym biegu** (incremental
+save), wiec crash w polowie macierzy / w polowie powtorzen nie kasuje
+wczesniejszych wynikow.
 
 ## Pelny przeplyw
 
@@ -296,12 +306,33 @@ ograniczona do tej jednej funkcji.
 | `Backend` | string | `wasm-simd-threads` / `webgl` / `webgpu` / `webnn` / `cpu` / `gpu`. Pusty dla baseline. |
 | `Task` | string | `image` lub `text` — z argumentu `--task`. |
 | `SpeedometerScore` | float | Wynik Speedometra (geomean wszystkich workloadow). Pusty jesli scrape sie wywalil. |
+| `Repeat` | int | Numer powtorzenia w obrebie kombinacji (1..N, gdzie N = `--repeats`). Przy `--repeats 1` zawsze 1. |
 | `InferencesCompleted` | int | Ile petli `runInference()` przelecialo od startu petli do `stop`. 0 dla baseline. |
 | `InferenceLoopSeconds` | float | Czas zycia petli w sekundach. 0 dla baseline. |
 | `Throughput(inf/s)` | float | `InferencesCompleted / InferenceLoopSeconds` — przepustowosc inferencji **pod obciazeniem Speedometra**. Puste dla baseline. Por. z `1000 / AvgInference(ms)` z `benchmark_profiler.py` (przepustowosc bez kontencji), zeby zobaczyc o ile spowolnila sama inferencja. |
 | `SpeedometerDeltaPct` | float | Procentowa zmiana `SpeedometerScore` wzgledem wiersza `baseline` (`(score - baseline) / baseline * 100`). Ujemna wartosc = backend spowolnil Speedometra. Puste dla baseline lub jesli baseline nie zostal wykonany. |
 | `InferenceError` | string | Komunikat z `state.error` jesli petla sie wywalila w trakcie. |
 | `Error` | string | Komunikat z poziomu Pythona — np. timeout Speedometra, brak strony, RuntimeError ze sanity-checku. |
+
+### Plik agregatow `speedometer_under_load_summary.csv`
+
+Generowany przy kazdym `save_results()` z bezposredniej grupizacji
+wierszy szczegolowych. Jeden wiersz na unikalna kombinacje
+`(scenario, framework, backend, task)`.
+
+| Kolumna | Opis |
+|---|---|
+| `Scenario`, `Framework`, `Backend`, `Task` | Klucz grupy. |
+| `Attempts` | Liczba prob (= `--repeats`). |
+| `Successful` | Ile prob zakonczylo sie z poprawnym `SpeedometerScore` (reszta to bledy / timeouty). |
+| `Score_Avg` / `Score_Min` / `Score_Max` / `Score_P95` / `Score_Stdev` | Statystyki po `SpeedometerScore` z udanych prob. P95 wyznaczany jak w `benchmark_profiler.py` — `int(N * 0.95) - 1` po posortowanej liscie. Dla N=1..2 P95 ≈ Max. Stdev to **proba** (n-1). |
+| `Throughput_Avg` / `Min` / `Max` / `P95` | Jak wyzej, ale po `Throughput(inf/s)`. |
+| `Inferences_Avg` / `Min` / `Max` | Liczba inferencji wykonanych podczas Speedometra — usrednione. |
+| `SpeedometerDeltaPct_Avg` | Procentowa zmiana `Score_Avg` wzgledem **sredniego baseline** (`(Score_Avg − BaselineScore_Avg) / BaselineScore_Avg × 100`). Puste dla baseline lub jesli baseline nie zostal wykonany. |
+
+Per-row `SpeedometerDeltaPct` w pliku `speedometer_under_load.csv` tez
+uzywa **sredniego baseline** jako odniesienia (nie pierwszego biegu) —
+zeby pojedynczy outlier w baseline nie zepsul wszystkich delt.
 
 ## Jak interpretowac wyniki
 
