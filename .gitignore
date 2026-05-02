@@ -145,7 +145,7 @@ package-lock.json
 .venv
 
 public/
-benchmark_results/
+# benchmark_results/
 vendor/
 
 e2e/__pycache__/
