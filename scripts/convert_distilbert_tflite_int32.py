@@ -25,7 +25,10 @@ SEQ_LEN = 128
 
 def main():
     print(f"Loading {MODEL_ID}...")
-    model = TFDistilBertForSequenceClassification.from_pretrained(MODEL_ID)
+    # use_safetensors=False forces loading from pytorch_model.bin instead of
+    # model.safetensors. Necessary because transformers 4.57's PT->TF cross-loader
+    # has a bug iterating the safe_open object (TypeError: not iterable).
+    model = TFDistilBertForSequenceClassification.from_pretrained(MODEL_ID, use_safetensors=False)
 
     # Create a concrete function with INT32 input signatures
     @tf.function(input_signature=[
@@ -40,7 +43,16 @@ def main():
 
     print("Converting to TFLite...")
     converter = tf.lite.TFLiteConverter.from_concrete_functions([concrete_func])
-    converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS, tf.lite.OpsSet.SELECT_TF_OPS]
+    # Force the converter to emit ONLY canonical TFLite builtins (drop
+    # SELECT_TF_OPS). With SELECT_TF_OPS, the converter is happy to leave raw
+    # TF ops in the graph — including 2D GATHER and STRIDED_SLICE with
+    # shrink_axis_mask, both of which LiteRT.js's WebGPU delegate refuses.
+    # Builtins-only forces the converter to lower those into webgpu-friendly
+    # equivalents (or fail, in which case we fall back to plan B/C).
+    converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS]
+    converter.experimental_new_converter = True              # MLIR-based path (default in recent TF, set explicitly)
+    converter._experimental_lower_tensor_list_ops = True     # simplify control flow
+    converter.allow_custom_ops = False                       # don't let custom ops sneak in
     tflite_model = converter.convert()
 
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
