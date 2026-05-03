@@ -1,9 +1,9 @@
 Task,Framework,Backend,FrameworkInit(ms),ModelLoad(ms),AvgInference(ms),MinInference(ms),MaxInference(ms),P95Inference(ms),Init_AvgCPU(%),Init_PeakCPU(%),Init_AvgGPU(%),Init_PeakGPU(%),Load_AvgCPU(%),Load_PeakCPU(%),Load_MemRSS_Start(MB),Load_MemRSS_End(MB),Load_MemDelta(MB),Inf_AvgCPU(%),Inf_PeakCPU(%),Inf_AvgGPU(%),Inf_PeakGPU(%),Inf_MemRSS_Start(MB),Inf_MemRSS_End(MB),Inf_MemDelta(MB),Inf_GPU_Mem_Start(MB),Inf_GPU_Mem_End(MB),Inf_GPU_Mem_Delta(MB),Top1Prediction,Top1Score(%),Error
-text-classification,tfjs,wasm-simd-threads,74.7,1078.46,199.36,186.57,209.69,204.68,112.5,245.7,3.0,4.0,146.2,248.5,1041.15,1228.28,187.13,588.6,908.0,0.0,0.0,1501.34,1497.37,-3.97,1088.0,1088.0,0.0,POSITIVE,99.99,
-text-classification,tfjs,webgl,21.59,1033.35,30.89,24.3,43.6,40.75,146.1,407.5,3.1,4.0,131.8,214.2,989.94,1186.2,196.26,92.6,171.4,31.0,65.0,1207.29,1216.36,9.07,1515.0,1515.0,0.0,POSITIVE,99.99,
-text-classification,tfjs,webgpu,101.95,987.49,20.82,17.0,25.33,22.94,104.7,152.2,2.6,4.0,125.7,209.0,1036.64,1147.93,111.29,105.7,175.7,17.3,19.0,1912.57,1931.53,18.96,1453.0,1453.0,0.0,POSITIVE,99.99,
-text-classification,onnx,wasm-simd-threads,365.41,4158.66,96.73,83.45,131.95,106.47,116.7,391.6,2.6,4.0,291.4,1595.9,985.36,2017.1,1031.74,1227.1,1522.7,0.0,0.0,2056.41,2308.3,251.89,1093.0,1093.0,0.0,POSITIVE,99.99,
-text-classification,onnx,webgl,95.46,0,0,0,0,0,,,,,,,,,,,,,,,,,,,,N/A,N/A,"Page.evaluate: TypeError: cannot resolve operator 'Expand' with opsets: ai.onnx v11
+text-classification,tfjs,wasm-simd-threads,79.15,1052.74,200.54,193.37,207.97,205.59,171.2,403.5,3.2,5.0,118.4,176.6,1056.59,1518.51,461.92,585.1,830.3,0.0,0.0,1848.73,1847.96,-0.77,1115.0,1115.0,0.0,POSITIVE,99.99,
+text-classification,tfjs,webgl,23.45,997.93,32.81,23.91,51.66,49.73,138.2,555.2,3.8,5.0,146.9,283.1,1007.96,1059.66,51.7,97.9,196.3,55.2,81.0,1212.62,1220.64,8.02,1632.0,1632.0,0.0,POSITIVE,99.99,
+text-classification,tfjs,webgpu,103.64,1028.76,20.95,17.96,23.81,23.2,163.0,416.9,6.7,15.0,144.3,336.5,1038.45,1318.73,280.28,126.6,173.0,23.7,46.0,1949.92,1968.48,18.56,1475.0,1475.0,0.0,POSITIVE,99.99,
+text-classification,onnx,wasm-simd-threads,320.2,7018.87,94.67,79.81,119.3,107.04,111.4,299.8,3.6,5.0,165.1,1515.8,742.21,2005.9,1263.69,1181.8,1499.3,0.0,0.0,2045.54,2159.39,113.85,1114.0,1114.0,0.0,POSITIVE,99.99,
+text-classification,onnx,webgl,104.93,0,0,0,0,0,,,,,,,,,,,,,,,,,,,,N/A,N/A,"Page.evaluate: TypeError: cannot resolve operator 'Expand' with opsets: ai.onnx v11
     at Ma (http://localhost:5173/node_modules/onnxruntime-web/dist/ort.webgl.min.mjs?v=4299107e:6:25262)
     at wr.resolve (http://localhost:5173/node_modules/onnxruntime-web/dist/ort.webgl.min.mjs?v=4299107e:1799:6299)
     at Ar.initializeOps (http://localhost:5173/node_modules/onnxruntime-web/dist/ort.webgl.min.mjs?v=4299107e:1802:4311)
@@ -11,10 +11,10 @@ text-classification,onnx,webgl,95.46,0,0,0,0,0,,,,,,,,,,,,,,,,,,,,N/A,N/A,"Page.
     at Nn.event (http://localhost:5173/node_modules/onnxruntime-web/dist/ort.webgl.min.mjs?v=4299107e:6:23633)
     at Ar.initialize (http://localhost:5173/node_modules/onnxruntime-web/dist/ort.webgl.min.mjs?v=4299107e:1802:1736)
     at http://localhost:5173/node_modules/onnxruntime-web/dist/ort.webgl.min.mjs?v=4299107e:1802:1560"
-text-classification,onnx,webgpu,512.02,8585.8,23.88,17.9,37.21,30.67,114.7,346.3,4.3,7.0,154.8,1577.2,748.98,2518.2,1769.22,1035.0,1391.2,23.9,49.0,2640.74,2467.59,-173.15,1519.0,1519.0,0.0,POSITIVE,99.99,
-text-classification,onnx,webnn,366.22,4800.8,117.61,94.9,186.16,155.94,144.2,379.8,3.3,5.0,273.9,1527.6,747.72,2023.1,1275.38,1358.9,1561.2,0.0,0.0,2230.96,2656.38,425.42,1093.0,1093.0,0.0,POSITIVE,99.99,
-text-classification,litert,wasm-simd-threads,181.34,614.98,178.37,175.91,184.01,181.59,49.4,148.3,6.0,6.0,200.5,466.1,564.3,1405.34,841.04,206.8,310.6,0.0,0.0,1457.1,1659.61,202.51,1127.0,1111.0,-16.0,POSITIVE,99.99,
-text-classification,litert,webgpu,184.78,0,0,0,0,0,,,,,,,,,,,,,,,,,,,,N/A,N/A,"Page.evaluate: Error: ERROR: [third_party/odml/litert/litert/js/packages/core/src/cpp/litert_web.cc:110]
+text-classification,onnx,webgpu,504.53,4307.83,24.9,18.64,36.31,29.44,106.5,276.6,3.3,5.0,302.3,1612.2,744.72,2497.2,1752.48,1054.2,1345.3,37.5,68.0,2602.08,2490.12,-111.96,1542.0,1542.0,0.0,POSITIVE,99.99,
+text-classification,onnx,webnn,376.21,5561.81,138.04,97.06,255.84,249.77,122.3,309.1,3.3,4.0,258.6,1654.4,1055.47,2055.89,1000.42,1338.6,1651.7,0.0,0.0,2204.91,2638.56,433.65,1115.0,1115.0,0.0,POSITIVE,99.99,
+text-classification,litert,wasm-simd-threads,176.76,700.63,205.95,201.95,209.3,207.89,222.8,408.5,4.0,4.0,234.6,348.1,568.64,1174.7,606.06,202.8,281.2,0.0,0.0,1473.64,1688.08,214.44,1134.0,1134.0,0.0,POSITIVE,99.99,
+text-classification,litert,webgpu,176.96,0,0,0,0,0,,,,,,,,,,,,,,,,,,,,N/A,N/A,"Page.evaluate: Error: ERROR: [third_party/odml/litert/litert/js/packages/core/src/cpp/litert_web.cc:110]
 └ ERROR: [third_party/odml/litert/litert/cc/internal/litert_compiled_model_next.cc:41]
     at DefaultErrorReporter (http://localhost:5173/litert-wasm/litert_wasm_internal.js:1:154141)
     at http://localhost:5173/litert-wasm/litert_wasm_internal.wasm:wasm-function[617]:0x44940
@@ -22,11 +22,11 @@ text-classification,litert,webgpu,184.78,0,0,0,0,0,,,,,,,,,,,,,,,,,,,,N/A,N/A,"P
     at http://localhost:5173/litert-wasm/litert_wasm_internal.wasm:wasm-function[7826]:0x6ea4e0
     at Object.compileModel (http://localhost:5173/litert-wasm/litert_wasm_internal.js:1:91517)
     at LiteRt.loadAndCompile (http://localhost:5173/node_modules/.vite/deps/@litertjs_core.js?v=4299107e:1034:47)
-    at async LiteRTTextBenchmark.loadModel (http://localhost:5173/src/benchmarks/litert-text.ts?t=1777799879345:32:20)
+    at async LiteRTTextBenchmark.loadModel (http://localhost:5173/src/benchmarks/litert-text.ts:32:20)
     at async eval (eval at evaluate (:290:30), <anonymous>:3:21)
     at async <anonymous>:316:30"
-text-classification,transformersjs,wasm-simd-threads,0.37,454.77,34.82,31.83,47.61,39.48,252.3,1525.4,0.7,4.0,1422.1,1561.3,2248.52,2618.05,369.53,1394.5,1589.2,1.5,4.0,2568.37,2483.99,-84.38,1111.0,1111.0,0.0,POSITIVE,99.99,
-text-classification,transformersjs,webgpu,0.32,960.98,21.43,17.37,27.62,26.01,231.5,1577.9,1.0,6.0,1373.9,1533.5,2291.4,2788.12,496.72,852.6,1122.5,4.1,21.0,2893.39,2876.88,-16.51,1496.0,1496.0,0.0,POSITIVE,99.99,
-text-classification,transformersjs,webnn,0.32,791.97,61.88,44.24,129.19,70.66,231.8,1541.9,1.6,6.0,1427.9,1602.8,2251.17,2491.32,240.15,1253.1,1519.9,0.3,1.0,2538.7,2446.43,-92.27,1095.0,1095.0,0.0,POSITIVE,99.99,
-text-classification,tflite-native,cpu,0.34,124.64,44.48,28.12,49.31,48.59,140.4,280.8,1.0,1.0,24.9,49.8,478.83,478.86,0.03,341.0,420.5,1.8,4.0,914.91,915.12,0.21,1109.0,1109.0,0.0,POSITIVE,99.99,
-text-classification,tflite-native,gpu,0.28,308.39,38.37,32.08,41.99,41.52,83.5,167.0,4.0,4.0,64.8,133.5,474.52,1163.1,688.58,328.3,400.9,2.0,4.0,1025.23,1025.41,0.18,1311.0,1311.0,0.0,POSITIVE,99.99,
+text-classification,transformersjs,wasm-simd-threads,0.39,453.38,18.65,12.98,42.4,26.56,268.7,1523.3,0.9,5.0,1475.1,1526.0,2325.58,2643.19,317.61,1362.3,1608.3,0.0,0.0,2511.56,2566.82,55.26,1134.0,1134.0,0.0,POSITIVE,99.99,
+text-classification,transformersjs,webgpu,0.31,1032.25,21.73,17.27,28.8,26.5,264.6,1480.1,1.1,8.0,1405.3,1596.1,2261.57,2606.74,345.17,888.4,1077.9,10.3,18.0,2872.81,2866.08,-6.73,1518.0,1518.0,0.0,POSITIVE,99.99,
+text-classification,transformersjs,webnn,0.33,853.15,59.83,42.77,149.77,70.27,273.4,1492.4,1.3,9.0,1379.0,1537.6,2318.43,2435.65,117.22,1262.1,1515.7,0.7,2.0,2507.82,2777.9,270.08,1134.0,1134.0,0.0,POSITIVE,99.99,
+text-classification,tflite-native,cpu,0.3,134.6,26.89,25.35,29.7,29.21,291.6,583.2,10.0,10.0,27.2,28.8,479.56,583.79,104.23,300.1,413.8,2.2,4.0,916.1,916.51,0.41,1131.0,1131.0,0.0,POSITIVE,99.99,
+text-classification,tflite-native,gpu,0.28,308.82,23.67,22.33,25.85,25.45,0.0,0.0,3.0,3.0,53.5,132.7,475.2,1174.52,699.32,286.2,465.6,2.0,2.0,1031.01,1031.32,0.31,1334.0,1334.0,0.0,POSITIVE,99.99,
