@@ -25,6 +25,11 @@ const modeSelect = document.getElementById('mode') as HTMLSelectElement;
 const aggregateSection = document.getElementById('aggregate-results-section') as HTMLElement;
 const sessionSection = document.getElementById('session-results-section') as HTMLElement;
 const sessionResultsBody = document.getElementById('session-results-body') as HTMLTableSectionElement;
+const sessionSetupInfo = document.getElementById('session-setup-info') as HTMLElement;
+const sessionSetupFramework = document.getElementById('session-setup-framework') as HTMLSpanElement;
+const sessionSetupBackend = document.getElementById('session-setup-backend') as HTMLSpanElement;
+const sessionSetupInit = document.getElementById('session-setup-init') as HTMLSpanElement;
+const sessionSetupLoad = document.getElementById('session-setup-load') as HTMLSpanElement;
 const taskSelect = document.getElementById('task') as HTMLSelectElement;
 const imageSection = document.getElementById('image-section') as HTMLElement;
 const textSection = document.getElementById('text-section') as HTMLElement;
@@ -352,43 +357,75 @@ async function runSessionMode() {
 
   let prevMemory = await getMemoryUsageMB();
 
-  for (let i = 0; i < sessions; i++) {
-    const pct = ((i + 1) / sessions) * 100;
-    showProgress('Session', `${i + 1}/${sessions}`, pct);
+  // Session mode now mirrors aggregate mode's loop shape exactly:
+  // framework init + model load + setInput happen ONCE before the loop;
+  // the loop body only runs inference + memory + DOM. Per-row data is
+  // therefore genuinely per-inference. The one-time setup cost is
+  // surfaced in the #session-setup-info banner instead of being
+  // smuggled into row 1.
+  //
+  // (Recreating the LiteRT JS wrapper or re-entering its init/load paths
+  //  per iteration deadlocks @litertjs/core multi-threaded WASM after a
+  //  fixed number of iterations; doing setup once avoids that.)
+  const benchmark = createBenchmark(frameworkId, task);
 
-    try {
-      const benchmark = createBenchmark(frameworkId, task);
+  // Reset the setup banner for this run.
+  sessionSetupInfo.hidden = true;
+  sessionSetupFramework.textContent = '—';
+  sessionSetupBackend.textContent = '—';
+  sessionSetupInit.textContent = '—';
+  sessionSetupLoad.textContent = '—';
 
-      // Init
-      const initStart = performance.now();
-      await benchmark.initFramework(backendId);
-      const initMs = round(performance.now() - initStart);
+  let setupInitMs = 0;
+  let setupLoadMs = 0;
+  try {
+    const initStart = performance.now();
+    await benchmark.initFramework(backendId);
+    setupInitMs = round(performance.now() - initStart);
 
-      // Prefetch (not timed)
-      await benchmark.prefetchModel();
+    await benchmark.prefetchModel();
 
-      // Model load
-      const loadStart = performance.now();
-      await benchmark.loadModel();
-      const loadMs = round(performance.now() - loadStart);
+    const loadStart = performance.now();
+    await benchmark.loadModel();
+    setupLoadMs = round(performance.now() - loadStart);
 
-      // Set input and run single inference
-      benchmark.setInput(input);
-      const inferenceMs = round(await benchmark.runInference());
+    benchmark.setInput(input);
 
-      // Memory
-      const memNow = await getMemoryUsageMB();
-      const memDelta = prevMemory != null && memNow != null ? round(memNow - prevMemory) : null;
+    sessionSetupFramework.textContent = benchmark.name;
+    sessionSetupBackend.textContent = backendId.toUpperCase();
+    sessionSetupInit.textContent = String(setupInitMs);
+    sessionSetupLoad.textContent = String(setupLoadMs);
+    sessionSetupInfo.hidden = false;
+  } catch (err: any) {
+    addSessionRow(1, frameworkId, backendId.toUpperCase(), 0, null, null, err?.message ?? String(err));
+    showProgress('Error', err?.message || String(err), 100);
+    progressText.classList.add('status-error');
+    try { await benchmark.dispose(); } catch (_) { /* ignore */ }
+    runBtn.disabled = false;
+    exportBtn.disabled = false;
+    return;
+  }
 
-      // Add row
-      addSessionRow(i + 1, benchmark.name, backendId.toUpperCase(), initMs, loadMs, inferenceMs, memNow, memDelta);
+  try {
+    for (let i = 0; i < sessions; i++) {
+      const pct = ((i + 1) / sessions) * 100;
+      showProgress('Session', `${i + 1}/${sessions}`, pct);
 
-      prevMemory = memNow;
+      try {
+        const inferenceMs = round(await benchmark.runInference());
 
-      await benchmark.dispose();
-    } catch (err: any) {
-      addSessionRow(i + 1, frameworkId, backendId.toUpperCase(), 0, 0, 0, null, null, err.message);
+        const memNow = await getMemoryUsageMB();
+        const memDelta = prevMemory != null && memNow != null ? round(memNow - prevMemory) : null;
+
+        addSessionRow(i + 1, benchmark.name, backendId.toUpperCase(), inferenceMs, memNow, memDelta);
+
+        prevMemory = memNow;
+      } catch (err: any) {
+        addSessionRow(i + 1, frameworkId, backendId.toUpperCase(), 0, null, null, err.message);
+      }
     }
+  } finally {
+    try { await benchmark.dispose(); } catch (e) { console.warn('dispose failed:', e); }
   }
 
   showProgress('Done', `${sessions} sessions complete!`, 100);
@@ -400,22 +437,19 @@ async function runSessionMode() {
 
 function addSessionRow(
   num: number, framework: string, backend: string,
-  initMs: number, loadMs: number, inferenceMs: number,
+  inferenceMs: number,
   memMB: number | null, memDeltaMB: number | null,
   error?: string,
 ) {
   const tr = document.createElement('tr');
   if (error) {
-    tr.innerHTML = `<td>${num}</td><td>${framework}</td><td>${backend}</td><td colspan="6" class="status-error">${error}</td>`;
+    tr.innerHTML = `<td>${num}</td><td>${framework}</td><td>${backend}</td><td colspan="3" class="status-error">${error}</td>`;
   } else {
     tr.innerHTML = `
       <td>${num}</td>
       <td>${framework}</td>
       <td>${backend}</td>
-      <td>${initMs}</td>
-      <td>${loadMs}</td>
       <td>${inferenceMs}</td>
-      <td>${round(initMs + loadMs + inferenceMs)}</td>
       <td>${memMB ?? 'N/A'}</td>
       <td>${memDeltaMB ?? 'N/A'}</td>
     `;

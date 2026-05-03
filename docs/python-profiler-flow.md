@@ -93,11 +93,12 @@ flowchart TD
     ModeBranch -->|session| SE_Conf["page.select_option dla<br/>#task, #framework, #backend, #mode<br/>page.fill #iterations, #warmup<br/>page.evaluate loadImage<br/>lub fill #text-input"]
     SE_Conf --> SE_StartSampler["sampler.start()<br/>set_phase('running')<br/>page.click('#run-btn')"]
     SE_StartSampler --> SE_Poll{"co 300 ms:<br/>licz wiersze<br/>#session-results-body"}
-    SE_Poll -->|nowy wiersz #s| SE_Mark["set_phase('session_'+s)"]
+    SE_Poll -->|nowy wiersz #i| SE_Mark["set_phase('session_'+i)<br/>(etykieta obejmuje<br/>JEDNA inferencje;<br/>setup juz sie wykonal<br/>przed pierwszym wierszem)"]
     SE_Mark --> SE_Poll
     SE_Poll -->|N wierszy / btn aktywny| SE_Done["set_phase('done')<br/>sampler.stop()"]
-    SE_Done --> SE_Read["page.evaluate: odczyt komorek td<br/>z #session-results-body<br/>→ initMs, loadMs, inferenceMs,<br/>totalMs, memMB, memDelta"]
-    SE_Read --> SE_Join["dla sesji s = 1..N:<br/>SessionResult(<br/>  framework_init_ms, model_load_ms,<br/>  inference_ms, total_ms ← z DOM<br/>  +<br/>  avg/peak CPU/GPU,<br/>  RSS start/end/delta,<br/>  GPU VRAM start/end/delta<br/>  ← sampler.get_phase_metrics('session_'+s)<br/>)"]
+    SE_Done --> SE_ReadSetup["page.evaluate: odczyt banera<br/>#session-setup-init / #session-setup-load<br/>→ JEDNORAZOWE setup_init_ms,<br/>setup_load_ms (te same dla<br/>calej kombinacji)"]
+    SE_ReadSetup --> SE_Read["page.evaluate: odczyt komorek td<br/>z #session-results-body<br/>(tabela ma teraz 6 kolumn)<br/>→ inferenceMs, memMB, memDelta"]
+    SE_Read --> SE_Join["dla iteracji i = 1..N:<br/>SessionResult(<br/>  framework_init_ms = setup_init_ms,<br/>  model_load_ms = setup_load_ms,<br/>  inference_ms ← z DOM,<br/>  total_ms = inference_ms<br/>  +<br/>  avg/peak CPU/GPU,<br/>  RSS start/end/delta,<br/>  GPU VRAM start/end/delta<br/>  ← sampler.get_phase_metrics('session_'+i)<br/>)"]
     SE_Join --> Close
 
     %% ============== COMMON END ==============
@@ -120,6 +121,8 @@ flowchart TD
     style SE_StartSampler fill:#7E57C2,color:#fff
     style SE_Done fill:#7E57C2,color:#fff
     style SE_Mark fill:#7E57C2,color:#fff
+    style SE_ReadSetup fill:#7E57C2,color:#fff
+    style SE_Read fill:#7E57C2,color:#fff
     style AG_Aggr fill:#7E57C2,color:#fff
     style SE_Join fill:#7E57C2,color:#fff
     style AG_F1 fill:#1565C0,color:#fff
@@ -173,25 +176,34 @@ liste `samples` po `phase == name` i agreguje statystyki.
 | Cecha | `--mode aggregate` | `--mode session` |
 |-------|--------------------|------------------|
 | Sterowanie przegladarka | `page.evaluate` per faza | Klikanie UI (`select_option`, `fill`, `click`) + polling tabeli |
-| Czas trwania na kombinacje | jedna sesja, 30 inferencji | N sesji × cold-start, kazda 1 inferencja |
-| Granice faz w samplerze | `framework_init`, `model_load`, `warmup`, `inference`, `classification`, `cleanup` | `session_1`, `session_2`, …, `session_N` |
-| Cel pomiaru | Steady-state inferencja, per-faza | Cold-start i jego powtarzalnosc |
+| Cykl zycia | jeden setup (init + load) → 30 inferencji | jeden setup (init + load) → N inferencji per-iteracja |
+| Co mierzy wiersz | jedna kombinacja, agregaty avg/min/max/p95 | jedna inferencja w cieplym runtime |
+| Granice faz w samplerze | `framework_init`, `model_load`, `warmup`, `inference`, `classification`, `cleanup` | `running` (przed pierwszym wierszem, obejmuje setup), nastepnie `session_1`, `session_2`, …, `session_N` (po jednej inferencji na etykiete) |
+| `FrameworkInit(ms)` / `ModelLoad(ms)` | jednorazowe, pochodza z `performance.now()` w `page.evaluate` | jednorazowe, odczytywane z banera `#session-setup-info`; **ta sama wartosc na kazdym wierszu** danej kombinacji |
+| Cel pomiaru | Steady-state inferencja, per-faza | Rozklad czasow inferencji iteracja po iteracji w cieplym runtime + jednorazowy koszt setupu |
 | Output | `benchmark_results_{image\|text}.{json,csv}` | `session_results_{image\|text}.{json,csv}` |
+
+> **Co odpowiada „cold-start" w trybie sesyjnym?** Pelny cold-start (init +
+> load) wykonuje sie tylko raz, przed petla. Pierwsza inferencja (`session_1`)
+> dziala juz na cieplym runtime, ale bez rozgrzanego JIT/cache inferencji,
+> wiec zwykle bywa minimalnie wolniejsza niz iteracje 2..N. Zeby widziec
+> faktyczny rozklad „pierwszy run vs kolejne", patrz na `Inference(ms)` per
+> wiersz, a nie na `FrameworkInit(ms)` / `ModelLoad(ms)`.
 
 ## Lista wszystkich rejestrowanych metryk
 
 Ten sam zestaw kolumn pojawia sie w obu trybach; tryb *aggregate* dodaje
 statystyki rozkladu inferencji (avg/min/max/p95) i Top-1 predykcje, tryb
-*session* ma jeden wiersz na sesje cold-start.
+*session* ma jeden wiersz na iteracje inferencji.
 
 ### Czas (po stronie przegladarki, `performance.now()`)
 
 | Kolumna | Jedn. | Faza | Co mierzy |
 |---|---|---|---|
-| `FrameworkInit(ms)` | ms | `framework_init` | `await initFramework(backend)` — rejestracja backendow, ladowanie modulow WASM, otwarcie WebGPU adaptera itp. |
-| `ModelLoad(ms)` | ms | `model_load` | `await loadModel()` — bajty → skompilowana sesja/graf. (Sesja 1 cold; sesje 2..N cache-hit ~0 ms — patrz cache modulu.) |
-| `Inference(ms)` (session) | ms | `inference` | Pojedyncze `runInference()` w sesji. |
-| `Total(ms)` (session) | ms | — | Suma `FrameworkInit + ModelLoad + Inference`. |
+| `FrameworkInit(ms)` | ms | `framework_init` (aggregate) / setup banner (session) | `await initFramework(backend)` — rejestracja backendow, ladowanie modulow WASM, otwarcie WebGPU adaptera itp. **W trybie session wartosc jednorazowa, odczytywana z banera, ta sama na kazdym wierszu danej kombinacji.** |
+| `ModelLoad(ms)` | ms | `model_load` (aggregate) / setup banner (session) | `await loadModel()` — bajty → skompilowana sesja/graf. **W trybie session jednorazowa, ta sama na kazdym wierszu.** |
+| `Inference(ms)` (session) | ms | `session_i` | Pojedyncze `runInference()` w iteracji `i`. |
+| `Total(ms)` (session) | ms | — | Rowny `Inference(ms)` (setup wykonal sie raz przed petla, NIE jest doliczany do kazdego wiersza). |
 | `AvgInference(ms)` (aggregate) | ms | `inference` | Srednia z `ITERATIONS=30` inferencji. |
 | `MinInference(ms)` / `MaxInference(ms)` (aggregate) | ms | `inference` | Skrajne czasy. |
 | `P95Inference(ms)` (aggregate) | ms | `inference` | 95-ty percentyl — odporny na pojedyncze artefakty GC/JIT. |
@@ -255,7 +267,7 @@ DirectML.
 | `Task` | `image-classification` lub `text-classification` |
 | `Framework` | `tfjs` / `onnx` / `litert` / `transformersjs` / `tflite-native` |
 | `Backend` | `wasm-simd-threads` / `webgl` / `webgpu` / `webnn` / `cpu` / `gpu` |
-| `Session#` (session mode) | Numer sesji 1..N — pozwala odroznic sesje 1 (cold-start) od 2..N (cache-hit). |
+| `Session#` (session mode) | Numer iteracji inferencji 1..N. Po refaktorze setup wykonuje sie **raz** przed petla, wiec wszystkie iteracje mierza inferencje na cieplym runtime. Roznica miedzy iteracja 1 a 2..N to glownie rozgrzewka JIT/cache inferencji, NIE cold-start frameworka. |
 | `Error` | Pusty przy sukcesie; przy bledzie zawiera komunikat (np. "WebNN not supported"). |
 
 ### Co jest w JSON ale nie w CSV

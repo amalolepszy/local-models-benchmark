@@ -75,6 +75,7 @@ TEXT_MATRIX: list[tuple[str, str]] = [
     ("onnx", "webgpu"),
     ("onnx", "webnn"),
     ("litert", "wasm-simd-threads"),
+    ("litert", "webgpu"),
     ("transformersjs", "wasm-simd-threads"),
     ("transformersjs", "webgpu"),
     ("transformersjs", "webnn"),
@@ -433,9 +434,10 @@ def _aggregate(rows: list[SpeedometerRow]) -> list[dict]:
     return out
 
 
-def save_results(rows: list[SpeedometerRow]):
+def save_results(rows: list[SpeedometerRow], task: str):
     output_dir = Path(__file__).parent.parent / "benchmark_results"
     output_dir.mkdir(exist_ok=True)
+    suffix = task  # "image" or "text"
 
     summary = _aggregate(rows)
     # Per-task mean baseline used for per-row delta below.
@@ -454,14 +456,14 @@ def save_results(rows: list[SpeedometerRow]):
         )
         json_rows.append(d)
 
-    json_path = output_dir / "speedometer_under_load.json"
+    json_path = output_dir / f"speedometer_under_load_{suffix}.json"
     json_path.write_text(json.dumps(
         {"runs": json_rows, "summary": summary}, indent=2,
     ))
     print(f"\nJSON saved to {json_path}")
 
     # --- Per-run CSV. ---
-    csv_path = output_dir / "speedometer_under_load.csv"
+    csv_path = output_dir / f"speedometer_under_load_{suffix}.csv"
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([
@@ -484,7 +486,7 @@ def save_results(rows: list[SpeedometerRow]):
     print(f"CSV saved to {csv_path}")
 
     # --- Aggregate CSV (one row per fw:be:task). ---
-    summary_csv = output_dir / "speedometer_under_load_summary.csv"
+    summary_csv = output_dir / f"speedometer_under_load_summary_{suffix}.csv"
     with open(summary_csv, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([
@@ -582,7 +584,7 @@ def main():
     )
     parser.add_argument(
         "--repeats", type=int, default=1,
-        help="Number of Speedometer runs per scenario (default: 1). Each run uses a fresh Chromium. Aggregates (avg/min/max/p95) are written to speedometer_under_load_summary.csv.",
+        help="Number of Speedometer runs per scenario (default: 1). Each run uses a fresh Chromium. Aggregates (avg/min/max/p95) are written to speedometer_under_load_summary_<task>.csv.",
     )
     args = parser.parse_args()
 
@@ -610,7 +612,7 @@ def main():
                 repeat=rep, total_repeats=args.repeats,
             ))
             # Save incrementally so a crash mid-run doesn't lose data.
-            save_results(rows)
+            save_results(rows, args.task)
 
     for fw, be in combos:
         for rep in range(1, args.repeats + 1):
@@ -618,7 +620,7 @@ def main():
                 fw, be, args.task, args.speedometer_timeout,
                 repeat=rep, total_repeats=args.repeats,
             ))
-            save_results(rows)
+            save_results(rows, args.task)
 
 
 if __name__ == "__main__":

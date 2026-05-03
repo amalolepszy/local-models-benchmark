@@ -37,13 +37,14 @@ python e2e/speedometer_under_load.py --all --no-baseline
 python e2e/speedometer_under_load.py --all --repeats 5              # 5 powtorzen na kombinacje + agregaty
 ```
 
-Wyniki:
-- `benchmark_results/speedometer_under_load.csv` — jeden wiersz na **kazdy
+Wyniki (sufiks `<task>` to `image` lub `text` — pliki dla obu zadan
+istnieja obok siebie i nie nadpisuja sie wzajemnie):
+- `benchmark_results/speedometer_under_load_<task>.csv` — jeden wiersz na **kazdy
   pojedynczy bieg** (z kolumna `Repeat`).
-- `benchmark_results/speedometer_under_load_summary.csv` — jeden wiersz
+- `benchmark_results/speedometer_under_load_summary_<task>.csv` — jeden wiersz
   na unikalna kombinacje (scenario, framework, backend, task) z
   agregatami `avg/min/max/p95/stdev` po wszystkich powtorzeniach.
-- `benchmark_results/speedometer_under_load.json` — `{"runs": [...],
+- `benchmark_results/speedometer_under_load_<task>.json` — `{"runs": [...],
   "summary": [...]}` zawierajacy oba widoki.
 
 Wszystko jest nadpisywane po **kazdym pojedynczym biegu** (incremental
@@ -296,7 +297,8 @@ ograniczona do tej jednej funkcji.
 
 ## Wynikowy wiersz CSV
 
-`benchmark_results/speedometer_under_load.csv`:
+`benchmark_results/speedometer_under_load_<task>.csv` (osobne pliki dla
+`image` i `text`):
 
 | Kolumna | Typ | Co opisuje |
 |---|---|---|
@@ -314,7 +316,7 @@ ograniczona do tej jednej funkcji.
 | `InferenceError` | string | Komunikat z `state.error` jesli petla sie wywalila w trakcie. |
 | `Error` | string | Komunikat z poziomu Pythona — np. timeout Speedometra, brak strony, RuntimeError ze sanity-checku. |
 
-### Plik agregatow `speedometer_under_load_summary.csv`
+### Plik agregatow `speedometer_under_load_summary_<task>.csv`
 
 Generowany przy kazdym `save_results()` z bezposredniej grupizacji
 wierszy szczegolowych. Jeden wiersz na unikalna kombinacje
@@ -330,7 +332,7 @@ wierszy szczegolowych. Jeden wiersz na unikalna kombinacje
 | `Inferences_Avg` / `Min` / `Max` | Liczba inferencji wykonanych podczas Speedometra — usrednione. |
 | `SpeedometerDeltaPct_Avg` | Procentowa zmiana `Score_Avg` wzgledem **sredniego baseline** (`(Score_Avg − BaselineScore_Avg) / BaselineScore_Avg × 100`). Puste dla baseline lub jesli baseline nie zostal wykonany. |
 
-Per-row `SpeedometerDeltaPct` w pliku `speedometer_under_load.csv` tez
+Per-row `SpeedometerDeltaPct` w pliku `speedometer_under_load_<task>.csv` tez
 uzywa **sredniego baseline** jako odniesienia (nie pierwszego biegu) —
 zeby pojedynczy outlier w baseline nie zepsul wszystkich delt.
 
