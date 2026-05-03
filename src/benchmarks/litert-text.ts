@@ -6,12 +6,12 @@ import { measureNewResources } from '../utils/metrics';
 const LABELS = ['NEGATIVE', 'POSITIVE'];
 
 let liteRtLoaded = false;
-let cachedModel: CompiledModel | null = null;
+const cachedModels: Record<string, CompiledModel> = {};
 
 export class LiteRTTextBenchmark implements FrameworkBenchmark {
   name = 'LiteRT.js';
   frameworkBytes = 0;
-  supportedBackends: BackendId[] = ['wasm-simd-threads'];
+  supportedBackends: BackendId[] = ['wasm-simd-threads', 'webgpu'];
   private model: CompiledModel | null = null;
   private tokenized: TokenizedText | null = null;
   private backend: BackendId = 'wasm';
@@ -34,11 +34,14 @@ export class LiteRTTextBenchmark implements FrameworkBenchmark {
   }
 
   async loadModel(): Promise<void> {
-    if (cachedModel) {
-      this.model = cachedModel;
+    const accelerator = this.backend === 'webgpu' ? 'webgpu' : 'wasm';
+    const cacheKey = `${this.modelUrl}:${accelerator}`;
+
+    if (cachedModels[cacheKey]) {
+      this.model = cachedModels[cacheKey];
     } else {
-      this.model = await loadAndCompile(this.modelUrl, { accelerator: 'wasm' });
-      cachedModel = this.model;
+      this.model = await loadAndCompile(this.modelUrl, { accelerator });
+      cachedModels[cacheKey] = this.model;
     }
 
     // Default dummy tokenized input
@@ -57,16 +60,25 @@ export class LiteRTTextBenchmark implements FrameworkBenchmark {
   async runInference(): Promise<number> {
     const t = this.tokenized!;
     // TFLite sorts inputs alphabetically: attention_mask=0, input_ids=1
-    const attentionMaskTensor = new Tensor(t.attentionMask, [1, t.attentionMask.length]);
-    const inputIdsTensor = new Tensor(t.inputIds, [1, t.inputIds.length]);
+    const attMaskInput = new Tensor(t.attentionMask, [1, t.attentionMask.length]);
+    const inputIdsInput = new Tensor(t.inputIds, [1, t.inputIds.length]);
+
+    const attMask = this.backend === 'webgpu'
+      ? await attMaskInput.moveTo('webgpu')
+      : attMaskInput;
+    const inputIds = this.backend === 'webgpu'
+      ? await inputIdsInput.moveTo('webgpu')
+      : inputIdsInput;
 
     const start = performance.now();
-    const results = await this.model!.run([attentionMaskTensor, inputIdsTensor]);
+    const results = await this.model!.run([attMask, inputIds]);
     await results[0]!.data();
     const elapsed = performance.now() - start;
 
-    attentionMaskTensor.delete();
-    inputIdsTensor.delete();
+    if (this.backend === 'webgpu' && attMask !== attMaskInput) attMask.delete();
+    else attMaskInput.delete();
+    if (this.backend === 'webgpu' && inputIds !== inputIdsInput) inputIds.delete();
+    else inputIdsInput.delete();
     results[0]!.delete();
 
     return elapsed;
@@ -75,15 +87,24 @@ export class LiteRTTextBenchmark implements FrameworkBenchmark {
   async classify(_topK = 5): Promise<ClassificationResult[]> {
     const t = this.tokenized!;
     // TFLite sorts inputs alphabetically: attention_mask=0, input_ids=1
-    const attentionMaskTensor = new Tensor(t.attentionMask, [1, t.attentionMask.length]);
-    const inputIdsTensor = new Tensor(t.inputIds, [1, t.inputIds.length]);
+    const attMaskInput = new Tensor(t.attentionMask, [1, t.attentionMask.length]);
+    const inputIdsInput = new Tensor(t.inputIds, [1, t.inputIds.length]);
 
-    const results = await this.model!.run([attentionMaskTensor, inputIdsTensor]);
+    const attMask = this.backend === 'webgpu'
+      ? await attMaskInput.moveTo('webgpu')
+      : attMaskInput;
+    const inputIds = this.backend === 'webgpu'
+      ? await inputIdsInput.moveTo('webgpu')
+      : inputIdsInput;
+
+    const results = await this.model!.run([attMask, inputIds]);
     const outputData = await results[0]!.data();
     const logits = new Float32Array(outputData.buffer, outputData.byteOffset, outputData.length);
 
-    attentionMaskTensor.delete();
-    inputIdsTensor.delete();
+    if (this.backend === 'webgpu' && attMask !== attMaskInput) attMask.delete();
+    else attMaskInput.delete();
+    if (this.backend === 'webgpu' && inputIds !== inputIdsInput) inputIds.delete();
+    else inputIdsInput.delete();
     results[0]!.delete();
 
     return logitsToResults(logits);

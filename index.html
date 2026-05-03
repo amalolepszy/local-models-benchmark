@@ -151,23 +151,27 @@
 
     <section class="results-section" id="session-results-section" hidden>
       <h2>Session Results (per-iteration)</h2>
+      <div id="session-setup-info" hidden>
+        One-time setup —
+        Framework: <span id="session-setup-framework">—</span>,
+        Backend: <span id="session-setup-backend">—</span>,
+        Init: <span id="session-setup-init">—</span> ms,
+        Model load: <span id="session-setup-load">—</span> ms
+      </div>
       <table id="session-results-table">
         <thead>
           <tr>
             <th>#</th>
             <th>Framework</th>
             <th>Backend</th>
-            <th>Init (ms)</th>
-            <th>Model Load (ms)</th>
             <th>Inference (ms)</th>
-            <th>Total (ms)</th>
             <th>Memory (MB)</th>
             <th>Mem Delta (MB)</th>
           </tr>
         </thead>
         <tbody id="session-results-body">
           <tr class="placeholder-row">
-            <td colspan="9">No results yet. Select "Session" mode and run.</td>
+            <td colspan="6">No results yet. Select "Session" mode and run.</td>
           </tr>
         </tbody>
       </table>

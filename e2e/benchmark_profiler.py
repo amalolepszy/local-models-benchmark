@@ -41,7 +41,7 @@ except ImportError:
 BASE_URL = "http://localhost:5173"
 SAMPLE_INTERVAL_MS = 50
 ITERATIONS = 30
-WARMUP = 0
+WARMUP = 3
 
 import argparse
 
@@ -97,6 +97,7 @@ TEXT_MATRIX = [
     ("onnx", "webgpu"),
     ("onnx", "webnn"),
     ("litert", "wasm-simd-threads"),
+    ("litert", "webgpu"),
     ("transformersjs", "wasm-simd-threads"),
     ("transformersjs", "webgpu"),
     ("transformersjs", "webnn"),
@@ -724,7 +725,25 @@ def run_session_combo(
             time.sleep(0.5)
             sampler.stop()
 
-            # --- Read results from the DOM ---
+            # --- Read one-time setup timing from the banner ---
+            # Session mode does init+load ONCE before the inference loop, so
+            # those numbers live in #session-setup-info, not in per-row cells.
+            setup = page.evaluate(
+                """() => {
+                    const initEl = document.getElementById('session-setup-init');
+                    const loadEl = document.getElementById('session-setup-load');
+                    const parse = (el) => {
+                        const t = (el?.textContent ?? '').trim();
+                        const v = parseFloat(t);
+                        return Number.isFinite(v) ? v : 0;
+                    };
+                    return { initMs: parse(initEl), loadMs: parse(loadEl) };
+                }""",
+            )
+            setup_init_ms = float(setup.get("initMs", 0) or 0)
+            setup_load_ms = float(setup.get("loadMs", 0) or 0)
+
+            # --- Read per-iteration rows from the DOM ---
             rows_data = page.evaluate(
                 """() => {
                     const rows = document.querySelectorAll(
@@ -744,18 +763,17 @@ def run_session_combo(
                             num: cells[0]?.textContent ?? '0',
                             framework: cells[1]?.textContent ?? '',
                             backend: cells[2]?.textContent ?? '',
-                            initMs: cells[3]?.textContent ?? '0',
-                            loadMs: cells[4]?.textContent ?? '0',
-                            inferenceMs: cells[5]?.textContent ?? '0',
-                            totalMs: cells[6]?.textContent ?? '0',
-                            memMB: cells[7]?.textContent ?? 'N/A',
-                            memDelta: cells[8]?.textContent ?? 'N/A',
+                            inferenceMs: cells[3]?.textContent ?? '0',
+                            memMB: cells[4]?.textContent ?? 'N/A',
+                            memDelta: cells[5]?.textContent ?? 'N/A',
                         };
                     });
                 }""",
             )
 
-            # Build SessionResult objects with timing from DOM + resources from sampler
+            # Build SessionResult objects with timing from DOM + resources from sampler.
+            # framework_init_ms / model_load_ms are the ONE-TIME setup cost; they're
+            # the same value on every row because setup happens once before the loop.
             for row in rows_data:
                 s = int(row.get("num", 0) or 0)
                 result = SessionResult(
@@ -766,10 +784,10 @@ def run_session_combo(
                 if "error" in row:
                     result.error = row["error"]
                 else:
-                    result.framework_init_ms = float(row.get("initMs", 0) or 0)
-                    result.model_load_ms = float(row.get("loadMs", 0) or 0)
+                    result.framework_init_ms = setup_init_ms
+                    result.model_load_ms = setup_load_ms
                     result.inference_ms = float(row.get("inferenceMs", 0) or 0)
-                    result.total_ms = float(row.get("totalMs", 0) or 0)
+                    result.total_ms = round(result.inference_ms, 2)
 
                 # Attach resource metrics from the closest sampled phase
                 phase = sampler.get_phase_metrics(f"session_{s}")

@@ -37,23 +37,25 @@ flowchart TD
     A_Dispose --> A_End([Koniec])
 
     %% ===== TRYB SESYJNY =====
-    ModeCheck -->|Sesyjny<br/>per-iteracja| S_Config[/Odczyt konfiguracji:<br/>framework, backend, zadanie,<br/>liczba sesji/]
+    %% Setup (createBenchmark + init + prefetch + load + setInput) wykonywany
+    %% jest JEDNOKROTNIE przed petla — petla zawiera wylacznie inferencje
+    %% + pomiar pamieci + dopisanie wiersza. Dzieki temu petla sesyjna ma
+    %% identyczny ksztalt co petla aggregate, a per-row dane sa naprawde
+    %% per-inferencja.
+    ModeCheck -->|Sesyjny<br/>per-iteracja| S_Config[/Odczyt konfiguracji:<br/>framework, backend, zadanie,<br/>liczba iteracji/]
     S_Config --> S_Input["Przygotowanie danych wejsciowych<br/>(jednokrotne, przed petla)"]
     S_Input --> S_MemInit["Pomiar pamięci PRZED<br/>performance.memory"]
-    S_MemInit --> S_Loop{"Sesja i = 1..N"}
+    S_MemInit --> S_Setup["<b>Jednorazowe setup PRZED petla</b><br/>createBenchmark(framework, task)<br/>initFramework(backend) ⏱<br/>prefetchModel() (czas NIE mierzony)<br/>loadModel() ⏱<br/>setInput()"]
+    S_Setup --> S_Banner["Wpis init/load do banera<br/>#session-setup-info<br/>(wartosci jednorazowe, ten sam<br/>komplet dla calej kombinacji)"]
+    S_Banner --> S_Loop{"Iteracja i = 1..N"}
 
-    S_Loop -->|Nastepna sesja| S_Create["Nowa instancja adaptera<br/>createBenchmark(framework, task)"]
-    S_Create --> S_Init["Inicjalizacja frameworka<br/>initFramework(backend)<br/>⏱ mierzony czas"]
-    S_Init --> S_Prefetch["Pobranie modelu<br/>prefetchModel()<br/>⏱ czas NIE mierzony<br/>(po sesji 1 - cache)"]
-    S_Prefetch --> S_Load["Kompilacja modelu<br/>loadModel()<br/>⏱ mierzony czas<br/>(po sesji 1 — cache)"]
-    S_Load --> S_SetInput["Ustawienie danych wejsciowych"]
-    S_SetInput --> S_Infer["Pojedyncza inferencja<br/>runInference()<br/>⏱ mierzony czas"]
-    S_Infer --> S_Mem["Pomiar pamieci<br/>+ delta wzgledem poprzedniej sesji"]
-    S_Mem --> S_Row["Dodanie wiersza do tabeli sesji"]
-    S_Row --> S_Dispose["Zwolnienie zasobow<br/>benchmark.dispose()"]
-    S_Dispose --> S_Loop
+    S_Loop -->|Nastepna iteracja| S_Infer["Pojedyncza inferencja<br/>runInference()<br/>⏱ mierzony czas"]
+    S_Infer --> S_Mem["Pomiar pamieci<br/>+ delta wzgledem poprzedniej iteracji"]
+    S_Mem --> S_Row["Dopisanie wiersza per-inferencja do tabeli<br/>(# / framework / backend /<br/>inference ms / memory MB / mem delta MB)"]
+    S_Row --> S_Loop
 
-    S_Loop -->|Wszystkie sesje zakonczone| S_End([Koniec])
+    S_Loop -->|Wszystkie iteracje zakonczone| S_Dispose["benchmark.dispose() (raz, w finally)"]
+    S_Dispose --> S_End([Koniec])
 
     %% ===== STYL =====
     style Start fill:#4CAF50,color:#fff
@@ -67,12 +69,21 @@ flowchart TD
     style A_Warmup fill:#9E9E9E,color:#fff
     style A_Infer fill:#2196F3,color:#fff
     style A_Classify fill:#2196F3,color:#fff
-    style S_Init fill:#2196F3,color:#fff
-    style S_Load fill:#2196F3,color:#fff
+    style S_Setup fill:#2196F3,color:#fff
     style S_Infer fill:#2196F3,color:#fff
     style A_Prefetch fill:#78909C,color:#fff
-    style S_Prefetch fill:#78909C,color:#fff
 ```
+
+> **Dlaczego setup raz, a nie per-iteracja?** Wczesniejsza wersja tworzyla
+> nowa instancje `LiteRTBenchmark` i wywolywala pelny lancuch `init → prefetch
+> → load` w kazdej iteracji. Cache na poziomie modulu (`cachedModels` w
+> `src/benchmarks/litert.ts`) sprawial, ze `loadModel` w iteracjach 2..N byl
+> cache-hitem o koszcie ~0 ms — ALE samo wchodzenie w sciezke
+> init/prefetch/load deterministycznie zakleszczalo wielowatkowy backend
+> WASM `@litertjs/core` po szostej iteracji (workery trzymane przez
+> nieaktywne instancje JS nie wracaly do puli). Setup-jednorazowy odzwierciedla
+> tez to, co aplikacja realnie robi w produkcji: framework i model laduje
+> sie raz na zycie strony, a uzytkownik tylko dosyla kolejne wejscia.
 
 ## 2. Test Playwright (`npm run bench`)
 
@@ -145,7 +156,16 @@ Rozni sie tym, ze NIE wykonuje inferencji przez `page.evaluate` — zamiast tego
 klikajac w aplikacji.
 
 - Argumenty CLI: `--mode aggregate|session`, `--sessions N`, `--task image|text`.
-- Sampler watki, fazowanie etykietami (`session_1`, `session_2`, ...).
+- Sampler watki, fazowanie etykietami (`session_1`, `session_2`, ...). W trybie
+  sesyjnym po refaktorze ka˙zda etykieta `session_i` obejmuje **jedna inferencje**
+  (a nie pelny cold-start) — setup wykonal sie raz, jeszcze zanim klikniety
+  zostal Run, wiec faza `running` (przed pierwsza inferencja) zawiera koszt
+  init/load.
+- Profiler odczytuje jednorazowy koszt setupu z banera `#session-setup-info`
+  (spany `#session-setup-init` i `#session-setup-load`), a per-iteracje
+  inference / memory / delta z wierszy tabeli `#session-results-body`. Pole
+  `framework_init_ms` i `model_load_ms` w `SessionResult` ma wiec **te sama
+  wartosc dla wszystkich wierszy danej kombinacji**.
 - Wyniki: `benchmark_results/session_results_*.csv` (z dodatkowymi kolumnami
   `*_avg_cpu`, `*_peak_cpu`, `*_avg_gpu`, `*_peak_gpu`, `*_mem_rss_*_mb`,
   `*_gpu_mem_*_mb`).
@@ -163,11 +183,11 @@ klikajac w aplikacji.
 
 ## Kluczowe roznice miedzy trybami
 
-| Cecha | UI: Zagregowany | UI: Sesyjny | Playwright | Python profiler |
-|-------|-----------------|-------------|------------|-----------------|
-| `loadModel()` wolane | 1 raz | Co sesje (cache modulu — sesja 1 kompiluje, 2..N cache-hit) | jw. | jw. |
-| Rozgrzewka | Domyslnie 3 iter. | Domyslnie 0 | 0 | 0 |
-| Inferencje | N iteracji, statystyki zbiorcze | 1 inferencja na sesje | 1 inferencja na sesje | 1 inferencja na sesje |
+| Cecha | UI: Zagregowany | UI: Sesyjny | Playwright (`benchmark.spec.ts`) | Python profiler (`benchmark_profiler.py`) |
+|-------|-----------------|-------------|------------------------------------|--------------------------------------------|
+| `loadModel()` wolane | 1 raz | 1 raz (przed petla) | Co sesje — cache modulu: sesja 1 kompiluje, 2..N cache-hit | 1 raz (steruje UI sesyjny, wiec dziedziczy jego zachowanie) |
+| Rozgrzewka | Domyslnie 3 iter. | Brak (kazda iteracja sie liczy) | 0 | jak tryb (aggregate: 3, session: brak) |
+| Inferencje | N iteracji, statystyki zbiorcze | N iteracji, jeden wiersz na inferencje | 1 inferencja na sesje (cold-start per session) | tryb session: N iteracji w cieplym runtime; tryb aggregate: 30 inferencji ze statystykami |
 | Pomiar pamieci | `performance.memory` (heap V8) | jw. | CDP RSS procesu + JS heap | `psutil` RSS + GPU mem |
 | Pomiar CPU/GPU | brak | brak | brak | `psutil` + `nvidia-smi` co ~50 ms |
-| Cel pomiaru | Wydajnosc inferencji (steady-state) | Narzut zimnego startu (cold-start) | Cold-start + zuzycie pamieci procesu | Cold-start + pelny obraz CPU/GPU/RAM |
+| Cel pomiaru | Wydajnosc inferencji (steady-state) | Per-iteracyjny rozklad inferencji + jednorazowy koszt setupu | Cold-start frameworka i jego powtarzalnosc | Per-iteracyjny rozklad inferencji + pelny obraz CPU/GPU/RAM |
