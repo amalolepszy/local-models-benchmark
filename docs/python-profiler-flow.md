@@ -307,3 +307,75 @@ JSON dump (`{benchmark|session}_results_*.json`) zawiera dodatkowo:
 - Inne procesy uzywajace GPU SA wliczane (poniewaz device-wide). Sprzatnij maszyne testowa.
 - Bezczynne procesy Chromium (utility processes) sa wliczane do CPU/RAM. Realna inferencja zwykle dominuje sygnal.
 - Brak instrumentacji per-WebGPU-command — nie wiemy "ile czasu spedzil shader X". Tylko sumaryczne GPU util%.
+
+## Macierz framework × backend (stan kodu)
+
+`IMAGE_MATRIX` i `TEXT_MATRIX` w `e2e/benchmark_profiler.py` (oraz blizniacze
+w `e2e/speedometer_under_load.py`) maja po **14 kombinacji**. Pochodza z
+`supportedBackends` zadeklarowanego w kazdym adapterze (`src/benchmarks/*.ts`):
+
+| Framework | Image (`src/benchmarks/<fw>.ts`) | Text (`src/benchmarks/<fw>-text.ts`) |
+|---|---|---|
+| `tfjs` | `wasm-simd-threads`, `webgl`, `webgpu` | `wasm-simd-threads`, `webgl`, `webgpu` |
+| `onnx` | `wasm-simd-threads`, `webgl`, `webgpu`, `webnn` | `wasm-simd-threads`, `webgl`, `webgpu`, `webnn` |
+| `litert` | `wasm-simd-threads`, `webgpu` | `wasm-simd-threads`, `webgpu` ⚠ |
+| `transformersjs` | `wasm-simd-threads`, `webgpu`, `webnn` | `wasm-simd-threads`, `webgpu`, `webnn` |
+| `tflite-native` | `cpu`, `gpu` | `cpu`, `gpu` |
+
+Razem 14 kombinacji na zadanie.
+
+## Znane ograniczenia per-kombinacja
+
+### LiteRT.js + WebGPU + DistilBERT (text) ⚠
+
+`litert:webgpu` w trybie `text` **kompiluje sie z bledem** w bibliotece
+`@litertjs/core` (v2.0). Konsola przegladarki raportuje:
+
+```
+ERROR: Following operations are not supported by GPU delegate:
+  GATHER: Only support 1D indices
+  STRIDED_SLICE: Slice does not support shrink_axis_mask parameter.
+263 operations will run on the GPU, and the remaining 8 operations will run on the CPU.
+```
+
+Po czym `compileModel()` zwraca twardy blad zamiast kompilowac model z
+partial-dispatch. Przyczyna: HuggingFace TF DistilBERT eksportuje:
+- `tf.gather(weights, input_ids)` z 2D indeksami (token embedding) — delegat
+  WebGPU obsluguje tylko 1D
+- `STRIDED_SLICE` z parametrem `shrink_axis_mask` (ekstrakcja tokenu `[CLS]`
+  w glowie klasyfikatora) — niewspierany na WebGPU
+
+Proba obejscia (`scripts/convert_distilbert_tflite_int32.py` z `target_spec.supported_ops = [TFLITE_BUILTINS]`,
+bez `SELECT_TF_OPS`) **nie pomogla** — flaga `SELECT_TF_OPS` kontroluje tylko
+to, czy raw TF ops moga przetrwac do `.tflite`; oba problematyczne ksztalty
+to TFLite builtins, ktore powstaja z metody `call()` modelu DistilBERT,
+niezaleznie od flag konwertera.
+
+Drugi tor (`scripts/convert_distilbert_tflite_aiedge.py` przy uzyciu
+`ai-edge-torch`) wymaga `litert-torch` + `ai-edge-tensorflow` +
+`litert-converter` — pakietow bez wheelow Windows, dlatego konwersja musi
+byc uruchomiona w WSL/Linux/macOS.
+
+W trakcie pomiarow kombinacja `litert:webgpu` w trybie `text` zostaje
+zarejestrowana jako **wiersz z bledem** (`Error` kolumna w CSV) — macierz
+sie konczy, ale ta jedna kombinacja nie ma sensownych liczb. To celowe:
+posrednia wartosc dla pracy magisterskiej — pokazuje konkretne luki
+operatorowe w dojrzewajacych runtime'ach WebGPU.
+
+Pozostale kombinacje LiteRT (`wasm-simd-threads` dla obu zadan, `webgpu`
+dla `image`) dzialaja normalnie.
+
+## Skrypty konwersji modeli
+
+- `scripts/convert_distilbert_tflite_int32.py` — TF Keras → TFLite,
+  builtins-only (po patchu z 2026-05-03). Wynik: `.tflite` z INT32
+  wejsciami `input_ids`/`attention_mask` ksztaltu `[1, 128]` i FLOAT32
+  wyjsciem logits `[1, 2]`. Wymaga `tf-keras` + `transformers<5` + `torch`
+  (do cross-load PT→TF). Dziala na Windows.
+- `scripts/convert_distilbert_tflite_aiedge.py` — PyTorch → TFLite
+  przez `ai-edge-torch` (Google AI Edge). Celowo dobiera wzorce
+  operatorowe pod LiteRT WebGPU. **Wymaga Linux/macOS/WSL** — pakiety
+  `litert-torch` itp. nie maja wheelow Windows. Skrypt jest gotowy,
+  ale nie zostal jeszcze zwalidowany na DistilBERT na tej platformie.
+- `scripts/convert_distilbert_tfjs.py` — TF Keras → TF.js Layers (model.json
+  + shardy bin) dla adaptera `tfjs-text.ts`. Niezalezny od LiteRT.
