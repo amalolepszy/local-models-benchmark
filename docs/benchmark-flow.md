@@ -191,3 +191,19 @@ klikajac w aplikacji.
 | Pomiar pamieci | `performance.memory` (heap V8) | jw. | CDP RSS procesu + JS heap | `psutil` RSS + GPU mem |
 | Pomiar CPU/GPU | brak | brak | brak | `psutil` + `nvidia-smi` co ~50 ms |
 | Cel pomiaru | Wydajnosc inferencji (steady-state) | Per-iteracyjny rozklad inferencji + jednorazowy koszt setupu | Cold-start frameworka i jego powtarzalnosc | Per-iteracyjny rozklad inferencji + pelny obraz CPU/GPU/RAM |
+
+## Macierz framework × backend i znane ograniczenia
+
+Adaptery `src/benchmarks/*.ts` (oddzielne wersje dla zadan `image` i `text`)
+deklaruja `supportedBackends`, ktore sa odzwierciedlone w `IMAGE_MATRIX` i
+`TEXT_MATRIX` w `e2e/benchmark_profiler.py` oraz `e2e/speedometer_under_load.py`
+(po **14 kombinacji** kazda).
+
+Jedna kombinacja nie produkuje sensownych liczb mimo ze jest na liscie:
+
+- **`litert:webgpu` w trybie `text`** — `@litertjs/core` v2.0 nie potrafi
+  skompilowac DistilBERT-a na WebGPU (luki operatorowe: `GATHER` z 2D
+  indeksami, `STRIDED_SLICE` z `shrink_axis_mask`). Kombinacja zostaje w
+  macierzy zeby pomiar uchwycil ten stan jako wiersz z bledem — to
+  swiadomy wybor metodologiczny, a nie pomylka. Pelne uzasadnienie i log
+  bledow: [`python-profiler-flow.md` § Znane ograniczenia](python-profiler-flow.md#znane-ograniczenia-per-kombinacja).

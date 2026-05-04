@@ -32,7 +32,7 @@ npm run dev                                                        # Vite na :51
 python e2e/speedometer_under_load.py                               # baseline + onnx:wasm-simd-threads, image
 python e2e/speedometer_under_load.py --combos onnx:webgpu,tfjs:webgpu
 python e2e/speedometer_under_load.py --all                          # cala IMAGE_MATRIX (14 kombinacji)
-python e2e/speedometer_under_load.py --all --task text              # cala TEXT_MATRIX (13 kombinacji)
+python e2e/speedometer_under_load.py --all --task text              # cala TEXT_MATRIX (14 kombinacji)
 python e2e/speedometer_under_load.py --all --no-baseline
 python e2e/speedometer_under_load.py --all --repeats 5              # 5 powtorzen na kombinacje + agregaty
 ```
@@ -57,7 +57,7 @@ wczesniejszych wynikow.
 flowchart TD
     Start([python speedometer_under_load.py]) --> ParseArgs[/Argparse:<br/>--combos / --all<br/>--task image/text<br/>--no-baseline<br/>--speedometer-timeout=600/]
     ParseArgs --> SelectMatrix{"Tryb wyboru kombinacji"}
-    SelectMatrix -->|--all| FullMatrix[/IMAGE_MATRIX 14<br/>lub TEXT_MATRIX 13/]
+    SelectMatrix -->|--all| FullMatrix[/IMAGE_MATRIX 14<br/>lub TEXT_MATRIX 14/]
     SelectMatrix -->|--combos fw1:be1,fw2:be2| Custom[/Wlasna lista/]
     SelectMatrix -->|brak flag| Default[/onnx:wasm-simd-threads/]
     FullMatrix --> Scenarios
@@ -382,6 +382,17 @@ zeby pojedynczy outlier w baseline nie zepsul wszystkich delt.
   potrzebny dla WebNN i TFLite Native — bez niego te backendy w macierzy
   zwroca error w kolumnie `Error`.
 - Speedometer 4 wymaga viewportu >= 850×650; skrypt ustawia 1280×900.
+
+## Znane ograniczenia per-kombinacja
+
+Macierze `IMAGE_MATRIX` / `TEXT_MATRIX` w tym pliku sa zsynchronizowane
+z `e2e/benchmark_profiler.py`. Pelny opis ograniczen kombinacji (m.in. ze
+`litert:webgpu` w trybie `text` kompiluje sie z bledem przez luki
+operatorowe `GATHER`/`STRIDED_SLICE` w `@litertjs/core` v2.0) znajduje
+sie w [`python-profiler-flow.md`](python-profiler-flow.md#znane-ograniczenia-per-kombinacja).
+Te same kombinacje zachowuja sie tutaj tak samo — failujace kombinacje
+trafiaja do CSV jako wiersz z `inferences_completed=0` i komunikatem
+w polu `inference_error`.
 
 ## Legenda
 
