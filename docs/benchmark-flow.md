@@ -105,7 +105,7 @@ flowchart TD
     style A_Load fill:#2196F3,color:#fff
     style A_Warmup fill:#9E9E9E,color:#fff
     style A_Infer fill:#2196F3,color:#fff
-    style A_Prefetch fill:#78909C,color:#fff
+    style A_Prefetch fill:#9E9E9E,color:#fff
 ```
 
 ### 1.2. Tryb sesyjny — osobny diagram
@@ -132,7 +132,7 @@ flowchart TD
     style Start fill:#4CAF50,color:#fff
     style A_Init fill:#2196F3,color:#fff
     style A_Load fill:#2196F3,color:#fff
-    style A_Prefetch fill:#78909C,color:#fff
+    style A_Prefetch fill:#9E9E9E,color:#fff
 ```
 
 ## 2. Test Playwright (`npm run bench`)
