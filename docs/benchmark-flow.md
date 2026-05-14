@@ -85,6 +85,56 @@ flowchart TD
 > tez to, co aplikacja realnie robi w produkcji: framework i model laduje
 > sie raz na zycie strony, a uzytkownik tylko dosyla kolejne wejscia.
 
+### 1.1. Tryb zagregowany — osobny diagram
+
+```mermaid
+flowchart TD
+    Start([Klik 'Run Benchmark' — tryb zagregowany]) --> A_Init["<b>Faza 1: Inicjalizacja frameworka</b><br/>initFramework(backend)<br/>⏱ mierzony czas"]
+    A_Init --> A_Prefetch["Pobranie modelu ze źródła<br/>⏱ czas NIE mierzony"]
+    A_Prefetch --> A_Load["<b>Faza 2: Kompilacja modelu</b><br/>loadModel()<br/>⏱ mierzony czas"]
+    A_Load --> A_Input["Przygotowanie i ustawienie danych wejsciowych"]
+    A_Input --> A_Warmup["<b>Rozgrzewka</b><br/>N iteracji inferencji<br/>wyniki odrzucone"]
+    A_Warmup --> A_Infer["<b>Faza 3: Pomiar inferencji</b><br/>N iteracji, każda mierzona osobno<br/>⏱ zbieranie czasów do tablicy"]
+    A_Infer --> A_StatsAfter["Obliczenie i wyświetlenie statystyk"]
+    A_StatsAfter --> A_Dispose["Zwolnienie zasobow<br/>benchmark.dispose()"]
+    A_Dispose --> A_End([Koniec])
+
+    style Start fill:#4CAF50,color:#fff
+    style A_End fill:#4CAF50,color:#fff
+    style A_Init fill:#2196F3,color:#fff
+    style A_Load fill:#2196F3,color:#fff
+    style A_Warmup fill:#9E9E9E,color:#fff
+    style A_Infer fill:#2196F3,color:#fff
+    style A_Prefetch fill:#78909C,color:#fff
+```
+
+### 1.2. Tryb sesyjny — osobny diagram
+
+```mermaid
+flowchart TD
+    Start([Klik 'Run Benchmark' — tryb sesyjny]) --> A_Init["<b>Faza 1: Inicjalizacja frameworka</b><br/>initFramework(backend)<br/>⏱ mierzony czas"]
+    A_Init --> A_Prefetch["Pobranie modelu ze źródła<br/>⏱ czas NIE mierzony"]
+    A_Prefetch --> A_Load["<b>Faza 2: Kompilacja modelu</b><br/>loadModel()<br/>⏱ mierzony czas"]
+    A_Load --> A_Input["Przygotowanie i ustawienie danych wejsciowych"]
+    A_Input --> S_Loop{"Iteracja i = 1..N"}
+
+    S_Loop -->|Nastepna iteracja| S_Infer["<b>Faza 3:Pojedyncza inferencja</b><br/>⏱ mierzony czas"]
+    S_Infer --> S_Mem["Pomiar metryk"]
+    S_Mem --> S_Loop
+
+    S_Loop -->|Wszystkie iteracje zakonczone| S_Dispose["benchmark.dispose()"]
+    S_Dispose --> S_End([Koniec])
+
+    style Start fill:#4CAF50,color:#fff
+    style S_End fill:#4CAF50,color:#fff
+    style S_Loop fill:#FF9800,color:#fff
+    style S_Infer fill:#2196F3,color:#fff
+    style Start fill:#4CAF50,color:#fff
+    style A_Init fill:#2196F3,color:#fff
+    style A_Load fill:#2196F3,color:#fff
+    style A_Prefetch fill:#78909C,color:#fff
+```
+
 ## 2. Test Playwright (`npm run bench`)
 
 `e2e/benchmark.spec.ts` automatyzuje tryb sesyjny dla calej macierzy `framework × backend`
