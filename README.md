@@ -8,7 +8,7 @@ Browser-based benchmark comparing ML inference frameworks running in Chromium. M
 |---|---|
 | TensorFlow.js | WASM, WebGL, WebGPU |
 | ONNX Runtime Web | WASM, WebGL, WebGPU, WebNN |
-| LiteRT (MediaPipe) | WASM, WebGPU |
+| LiteRT.js | WASM, WebGPU |
 | Transformers.js | WASM, WebGPU, WebNN |
 | [TFLite Native](https://github.com/amalolepszy/chromium-tflite-native) | CPU, GPU |
 
