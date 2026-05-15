@@ -89,15 +89,14 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([Klik 'Run Benchmark' — tryb zagregowany]) --> A_Init["<b>Faza 1: Inicjalizacja frameworka</b><br/>initFramework(backend)<br/>⏱ mierzony czas"]
+    Start([Klik 'Run Benchmark' — tryb zagregowany]) --> A_Init["<b>Faza 1: Inicjalizacja frameworka</b><br/>⏱ mierzony czas"]
     A_Init --> A_Prefetch["Pobranie modelu ze źródła<br/>⏱ czas NIE mierzony"]
-    A_Prefetch --> A_Load["<b>Faza 2: Kompilacja modelu</b><br/>loadModel()<br/>⏱ mierzony czas"]
+    A_Prefetch --> A_Load["<b>Faza 2: Kompilacja modelu</b><br/>⏱ mierzony czas"]
     A_Load --> A_Input["Przygotowanie i ustawienie danych wejsciowych"]
     A_Input --> A_Warmup["<b>Rozgrzewka</b><br/>N iteracji inferencji<br/>wyniki odrzucone"]
-    A_Warmup --> A_Infer["<b>Faza 3: Pomiar inferencji</b><br/>N iteracji, każda mierzona osobno<br/>⏱ zbieranie czasów do tablicy"]
-    A_Infer --> A_StatsAfter["Obliczenie i wyświetlenie statystyk"]
-    A_StatsAfter --> A_Dispose["Zwolnienie zasobow<br/>benchmark.dispose()"]
-    A_Dispose --> A_End([Koniec])
+    A_Warmup --> A_Infer["<b>Faza 3: Pomiar inferencji</b><br/>N iteracji, każda mierzona osobno<br/>⏱ mierzony czas"]
+    A_Infer --> A_StatsAfter["Agregacja statystyk, zwolnienie zasobów"]
+    A_StatsAfter --> A_End([Koniec])
 
     style Start fill:#4CAF50,color:#fff
     style A_End fill:#4CAF50,color:#fff
@@ -112,9 +111,9 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([Klik 'Run Benchmark' — tryb sesyjny]) --> A_Init["<b>Faza 1: Inicjalizacja frameworka</b><br/>initFramework(backend)<br/>⏱ mierzony czas"]
+    Start([Klik 'Run Benchmark' — tryb sesyjny]) --> A_Init["<b>Faza 1: Inicjalizacja frameworka</b><br/>⏱ mierzony czas"]
     A_Init --> A_Prefetch["Pobranie modelu ze źródła<br/>⏱ czas NIE mierzony"]
-    A_Prefetch --> A_Load["<b>Faza 2: Kompilacja modelu</b><br/>loadModel()<br/>⏱ mierzony czas"]
+    A_Prefetch --> A_Load["<b>Faza 2: Kompilacja modelu</b><br/>⏱ mierzony czas"]
     A_Load --> A_Input["Przygotowanie i ustawienie danych wejsciowych"]
     A_Input --> S_Loop{"Iteracja i = 1..N"}
 
@@ -122,7 +121,7 @@ flowchart TD
     S_Infer --> S_Mem["Pomiar metryk"]
     S_Mem --> S_Loop
 
-    S_Loop -->|Wszystkie iteracje zakonczone| S_Dispose["benchmark.dispose()"]
+    S_Loop -->|Wszystkie iteracje zakonczone| S_Dispose["Zwolnienie zasobów"]
     S_Dispose --> S_End([Koniec])
 
     style Start fill:#4CAF50,color:#fff

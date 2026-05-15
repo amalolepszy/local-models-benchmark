@@ -608,11 +608,6 @@ class SessionResult:
     init_peak_cpu: float = 0
     init_avg_gpu: float = 0
     init_peak_gpu: float = 0
-    load_avg_cpu: float = 0
-    load_peak_cpu: float = 0
-    load_mem_rss_start_mb: float = 0
-    load_mem_rss_end_mb: float = 0
-    load_mem_delta_mb: float = 0
     inf_avg_cpu: float = 0
     inf_peak_cpu: float = 0
     inf_avg_gpu: float = 0
@@ -859,9 +854,6 @@ def save_session_results(results: list[SessionResult]):
             # Init phase
             "Init_AvgCPU(%)", "Init_PeakCPU(%)",
             "Init_AvgGPU(%)", "Init_PeakGPU(%)",
-            # Model load phase
-            "Load_AvgCPU(%)", "Load_PeakCPU(%)",
-            "Load_MemRSS_Start(MB)", "Load_MemRSS_End(MB)", "Load_MemDelta(MB)",
             # Inference phase
             "Inf_AvgCPU(%)", "Inf_PeakCPU(%)",
             "Inf_AvgGPU(%)", "Inf_PeakGPU(%)",
@@ -876,8 +868,6 @@ def save_session_results(results: list[SessionResult]):
                 r.framework_init_ms, r.model_load_ms, r.inference_ms, r.total_ms,
                 r.init_avg_cpu, r.init_peak_cpu,
                 r.init_avg_gpu, r.init_peak_gpu,
-                r.load_avg_cpu, r.load_peak_cpu,
-                r.load_mem_rss_start_mb, r.load_mem_rss_end_mb, r.load_mem_delta_mb,
                 r.inf_avg_cpu, r.inf_peak_cpu,
                 r.inf_avg_gpu, r.inf_peak_gpu,
                 r.inf_mem_rss_start_mb, r.inf_mem_rss_end_mb, r.inf_mem_delta_mb,
