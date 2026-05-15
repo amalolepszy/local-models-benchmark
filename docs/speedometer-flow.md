@@ -51,6 +51,51 @@ Wszystko jest nadpisywane po **kazdym pojedynczym biegu** (incremental
 save), wiec crash w polowie macierzy / w polowie powtorzen nie kasuje
 wczesniejszych wynikow.
 
+## Widok wysokopoziomowy
+
+Diagram pomija szczegóły techniczne (nazwy funkcji, parametry interfejsu
+linii poleceń, selektory DOM) i przedstawia **logikę pomiaru oraz źródła
+zbieranych metryk**. Pełna specyfikacja techniczna znajduje się poniżej
+w sekcji „Pełny przepływ”.
+
+```mermaid
+flowchart TD
+    Start([Rozpoczęcie pomiaru Speedometer]) --> PickScenario{Rodzaj scenariusza}
+
+    PickScenario -->|Pomiar referencyjny| BL_Run["Uruchomienie benchmarku Speedometer"]
+    PickScenario -->|Pomiar pod obciążeniem| UL_Start["Inicjalizacja frameworka<br/>uruchomienie pętli inferencji<br/>w tle strony Speedometer"]
+
+    UL_Start --> UL_Run["Uruchomienie benchmarku Speedometer<br/>równolegle z aktywną pętlą inferencji"]
+
+    BL_Run --> ReadScore["Odczyt wyniku Speedometer<br/>po zakończeniu testu"]
+    UL_Run --> ReadScore
+    ReadScore --> Stop["Zatrzymanie pętli inferencji"]
+
+    Stop --> Repeat{Pozostały dalsze powtórzenia?}
+    Repeat -->|Tak| PickScenario
+    Repeat -->|Nie| Summary["Agregacja wyników po powtórzeniach"]
+
+    Summary --> End([Koniec])
+
+    style Start fill:#4CAF50,color:#fff
+    style End fill:#4CAF50,color:#fff
+    style PickScenario fill:#FF9800,color:#fff
+    style Repeat fill:#FF9800,color:#fff
+    style BL_Run fill:#1565C0,color:#fff
+    style UL_Run fill:#1565C0,color:#fff
+    style ReadScore fill:#1565C0,color:#fff
+    style UL_Start fill:#7E57C2,color:#fff
+    style Stop fill:#7E57C2,color:#fff
+    style Summary fill:#78909C,color:#fff
+```
+
+Istota pomiaru: porównywany jest **wynik Speedometra uzyskany w warunkach
+referencyjnych** (bez dodatkowego obciążenia przeglądarki) z **wynikiem
+Speedometra uzyskanym przy jednoczesnym wykonywaniu pętli wnioskowania
+w tej samej karcie**. Różnica procentowa między tymi pomiarami stanowi
+miarę degradacji responsywności aplikacji webowej wynikającej z użycia
+danej kombinacji frameworka i backendu inferencyjnego.
+
 ## Pelny przeplyw
 
 ```mermaid
