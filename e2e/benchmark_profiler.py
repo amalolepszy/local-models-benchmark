@@ -18,6 +18,7 @@ Requires:
 
 import json
 import csv
+import statistics
 import time
 import threading
 from dataclasses import dataclass, field, asdict
@@ -170,6 +171,7 @@ class BenchmarkResult:
     min_inference_ms: float = 0
     max_inference_ms: float = 0
     p95_inference_ms: float = 0
+    stdev_inference_ms: float = 0
     predictions: list = field(default_factory=list)
     error: Optional[str] = None
 
@@ -548,6 +550,9 @@ def run_benchmark_phased(framework: str, backend: str) -> BenchmarkResult:
             result.max_inference_ms = round(times[-1], 2)
             p95_idx = max(0, int(len(times) * 0.95) - 1)
             result.p95_inference_ms = round(times[p95_idx], 2)
+            result.stdev_inference_ms = (
+                round(statistics.stdev(inference_result), 2) if len(inference_result) > 1 else 0.0
+            )
 
             # --- Phase 5: Classification ---
             sampler.set_phase("classification")
@@ -1000,13 +1005,16 @@ def main_aggregate():
         writer.writerow([
             "Task", "Framework", "Backend",
             "FrameworkInit(ms)", "ModelLoad(ms)",
-            "AvgInference(ms)", "MinInference(ms)", "MaxInference(ms)", "P95Inference(ms)",
+            "AvgInference(ms)", "MinInference(ms)", "MaxInference(ms)", "P95Inference(ms)", "StdevInference(ms)",
             # Framework init phase
             "Init_AvgCPU(%)", "Init_PeakCPU(%)",
             "Init_AvgGPU(%)", "Init_PeakGPU(%)",
+            "Init_MemRSS_Start(MB)", "Init_MemRSS_End(MB)", "Init_MemDelta(MB)",
+            "Init_GPU_Mem_Start(MB)", "Init_GPU_Mem_End(MB)", "Init_GPU_Mem_Delta(MB)",
             # Model load phase
             "Load_AvgCPU(%)", "Load_PeakCPU(%)",
             "Load_MemRSS_Start(MB)", "Load_MemRSS_End(MB)", "Load_MemDelta(MB)",
+            "Load_GPU_Mem_Start(MB)", "Load_GPU_Mem_End(MB)", "Load_GPU_Mem_Delta(MB)",
             # Inference phase
             "Inf_AvgCPU(%)", "Inf_PeakCPU(%)",
             "Inf_AvgGPU(%)", "Inf_PeakGPU(%)",
@@ -1026,16 +1034,25 @@ def main_aggregate():
             writer.writerow([
                 r.task, r.framework, r.backend,
                 r.framework_init_ms, r.model_load_ms,
-                r.avg_inference_ms, r.min_inference_ms, r.max_inference_ms, r.p95_inference_ms,
+                r.avg_inference_ms, r.min_inference_ms, r.max_inference_ms, r.p95_inference_ms, r.stdev_inference_ms,
                 init_p.get("avg_cpu_percent", ""),
                 init_p.get("peak_cpu_percent", ""),
                 init_p.get("avg_gpu_percent", ""),
                 init_p.get("peak_gpu_percent", ""),
+                init_p.get("memory_rss_start_mb", ""),
+                init_p.get("memory_rss_end_mb", ""),
+                init_p.get("memory_rss_delta_mb", ""),
+                init_p.get("gpu_memory_start_mb", ""),
+                init_p.get("gpu_memory_end_mb", ""),
+                init_p.get("gpu_memory_delta_mb", ""),
                 load_p.get("avg_cpu_percent", ""),
                 load_p.get("peak_cpu_percent", ""),
                 load_p.get("memory_rss_start_mb", ""),
                 load_p.get("memory_rss_end_mb", ""),
                 load_p.get("memory_rss_delta_mb", ""),
+                load_p.get("gpu_memory_start_mb", ""),
+                load_p.get("gpu_memory_end_mb", ""),
+                load_p.get("gpu_memory_delta_mb", ""),
                 inf_p.get("avg_cpu_percent", ""),
                 inf_p.get("peak_cpu_percent", ""),
                 inf_p.get("avg_gpu_percent", ""),
