@@ -536,6 +536,16 @@ function addResultRow(m: BenchmarkMetrics) {
     textInput.value = text;
   },
 
+  /** Initialize framework only (no prefetch, no model load, no inference).
+   *  Created so network-footprint profilers can measure just the framework
+   *  runtime + WASM transfer in production bundles, where /src/ dynamic
+   *  imports are not available. */
+  async initOnly(frameworkId: string, backendId: string, task: string): Promise<void> {
+    const benchmark = createBenchmark(frameworkId as FrameworkId, task as TaskId);
+    await benchmark.initFramework(backendId as BackendId);
+    (window as any).__currentBenchmark = benchmark;
+  },
+
   /** Run benchmark and return full metrics (resolves when done) */
   async run(): Promise<BenchmarkMetrics> {
     const frameworkId = frameworkSelect.value as FrameworkId;
