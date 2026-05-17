@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from 'vite';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { resolve, extname, normalize, sep } from 'node:path';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 const COOP_COEP_HEADERS = {
   'Cross-Origin-Opener-Policy': 'same-origin',
@@ -80,5 +81,14 @@ export default defineConfig({
   worker: {
     format: 'es',
   },
-  plugins: [serveSpeedometer()],
+  plugins: [
+    serveSpeedometer(),
+    visualizer({
+      filename: 'dist/stats.html',
+      gzipSize: true,
+      brotliSize: true,
+      template: 'treemap',
+      title: 'Bundle size — local-models-benchmark',
+    }) as Plugin,
+  ],
 });
