@@ -1,2 +1,0 @@
-Timestamp,Scenario,Framework,Backend,Task,Repeat,SpeedometerScore,InferencesCompleted,InferenceLoopSeconds,Throughput(inf/s),SpeedometerDeltaPct,InferenceError,Error
-2026-05-16T16:51:03,under_load,tfjs,webgl,text,1,25.4,823,96.6,8.52,,,

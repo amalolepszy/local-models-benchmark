@@ -1,2 +1,0 @@
-Scenario,Framework,Backend,Task,Attempts,Successful,Score_Avg,Score_Min,Score_Max,Score_P95,Score_Stdev,Throughput_Avg,Throughput_Min,Throughput_Max,Throughput_P95,Inferences_Avg,Inferences_Min,Inferences_Max,SpeedometerDeltaPct_Avg
-under_load,tfjs,webgl,text,1,1,25.4,25.4,25.4,25.4,,8.52,8.52,8.52,8.52,823.0,823.0,823.0,
