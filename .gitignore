@@ -152,6 +152,4 @@ e2e/__pycache__/
 
 .venv-wsl/
 
-benchmark_results/
-
 docs/
